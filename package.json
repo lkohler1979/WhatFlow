@@ -22,5 +22,8 @@
   "lint-staged": {
     "apps/api/src/**/*.ts": ["eslint --fix", "prettier --write"],
     "apps/web/src/**/*.{ts,html,scss}": ["prettier --write"]
+  },
+  "overrides": {
+    "rxjs": "7.8.1"
   }
 }

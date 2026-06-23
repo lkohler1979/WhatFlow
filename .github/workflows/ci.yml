@@ -24,7 +24,7 @@ jobs:
       - run: npm run build --workspace=apps/api
 
   web:
-    name: Web — Install (build habilitado a partir do T-007)
+    name: Web — Build (Angular)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,11 +33,10 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
-      # TODO(T-007/T-009): habilitar quando o módulo de auth e o design
-      # system do Angular estiverem implementados:
+      - run: npm run build:prod --workspace=apps/web
+      # TODO(T-050): habilitar lint/test do Angular quando houver eslint+karma config
       # - run: npm run lint --workspace=apps/web
       # - run: npm run test --workspace=apps/web
-      # - run: npm run build:prod --workspace=apps/web
 
   deploy-staging:
     name: Deploy Staging
