@@ -44,7 +44,7 @@
 |---|---|---|---|---|---|---|
 | T-005 | Backend: Auth com Supabase Auth | Usuário registra, recebe JWT. Token expirado retorna 401. Tenant criado no registro. | Alta | G | T-004 | ✅ (validado e2e: register cria tenant+JWT; /me 200 com claims; token inválido 401. Middleware verifica via JWKS/ES256) |
 | T-006 | Políticas RLS no Supabase | Usuário A não vê dados do usuário B. Testes de isolamento passam. | Alta | M | T-004 | ✅ (isolamento validado via PostgREST: tenant A só vê dados de A e vice-versa. Script: `npm run rls:smoke`) |
-| T-007 | Frontend: Módulo de autenticação Angular | Login funciona. Token salvo. Rota `/dashboard` exige auth. Logout limpa token. | Alta | G | T-005 | 🟡 (login/register/forgot-password implementados; AuthService alinhado ao contrato `{user,session}`; guard exige auth; build passa — falta validar login no browser) |
+| T-007 | Frontend: Módulo de autenticação Angular | Login funciona. Token salvo. Rota `/dashboard` exige auth. Logout limpa token. | Alta | G | T-005 | ✅ (validado no browser: register→token salvo→guard libera→/dashboard; shell separado do root). Falta botão de logout na UI |
 | T-008 | Gestão de usuários e papéis | OWNER convida AGENT. AGENT não acessa billing. Guards bloqueiam acessos. | Média | M | T-005 | ⬜ |
 
 ### ÉPICO 1.3 — Estrutura Base do Frontend
