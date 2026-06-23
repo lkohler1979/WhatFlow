@@ -1,0 +1,24 @@
+<nav class="sidebar">
+  <div class="sidebar-logo">💬</div>
+  @for (item of navItems; track item.route) {
+  <a
+    [routerLink]="item.route"
+    routerLinkActive="active"
+    class="nav-item"
+    [matTooltip]="item.label"
+    matTooltipPosition="right"
+  >
+    <span>{{ item.icon }}</span>
+  </a>
+  }
+  <div class="nav-spacer"></div>
+  <a
+    routerLink="/settings"
+    routerLinkActive="active"
+    class="nav-item"
+    matTooltip="Configurações"
+    matTooltipPosition="right"
+  >
+    <span>⚙️</span>
+  </a>
+</nav>

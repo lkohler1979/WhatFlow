@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WhatFlow — Wireframes</title>
+<style>
+  :root {
+    --brand:    #1D6FA4;
+    --brand-dk: #145078;
+    --brand-lt: #EBF4FA;
+    --accent:   #25D366;  /* WhatsApp green */
+    --warn:     #E67E22;
+    --danger:   #C0392B;
+    --bg:       #F7F9FC;
+    --surface:  #FFFFFF;
+    --border:   #DDE3EB;
+    --muted:    #8B97A8;
+    --text:     #1A2332;
+    --text-sm:  #4A5568;
+    --node-text: #E8F5E9;
+    --node-img:  #E3F2FD;
+    --node-menu: #FFF8E1;
+    --node-cond: #FCE4EC;
+    --node-ai:   #F3E5F5;
+    --node-end:  #FFEBEE;
+    --shadow:    0 2px 8px rgba(0,0,0,.10);
+    --radius:    8px;
+    --font: 'Segoe UI', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); background: #E8ECF0; color: var(--text); }
+
+  /* ── NAV ── */
+  .page-tabs { display:flex; gap:0; background:var(--brand-dk); padding: 0 24px; }
+  .page-tabs button {
+    padding: 14px 24px; border:none; background:transparent;
+    color:#fff; opacity:.6; font:600 14px var(--font); cursor:pointer;
+    border-bottom: 3px solid transparent;
+  }
+  .page-tabs button.active { opacity:1; border-bottom-color: var(--accent); }
+
+  .wireframe { display:none; }
+  .wireframe.active { display:block; }
+
+  /* ── LABELS ANOTAÇÃO ── */
+  .annotation {
+    display:inline-block; background:#FFF9C4; border:1px dashed #F9A825;
+    color:#5D4037; font-size:11px; padding:3px 8px; border-radius:4px;
+    pointer-events:none;
+  }
+
+  /* ══════════════════════════════════════
+     WIREFRAME 1 — FLOW BUILDER
+  ══════════════════════════════════════ */
+  #wf-flow { height:100vh; display:flex; flex-direction:column; }
+
+  /* Topbar */
+  .fb-topbar {
+    background:var(--surface); border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:12px; padding:0 16px; height:52px;
+    box-shadow: var(--shadow); z-index:10;
+  }
+  .fb-topbar .flow-name {
+    font-size:15px; font-weight:600; color:var(--text);
+    border:1px solid transparent; padding:4px 8px; border-radius:4px;
+  }
+  .fb-topbar .flow-name:hover { border-color:var(--border); }
+  .badge { font-size:11px; padding:2px 8px; border-radius:12px; font-weight:600; }
+  .badge-draft    { background:#FFF3E0; color:var(--warn); }
+  .badge-pub      { background:#E8F5E9; color:#2E7D32; }
+  .spacer         { flex:1; }
+  .btn { padding:7px 16px; border-radius:var(--radius); border:none; font:600 13px var(--font); cursor:pointer; }
+  .btn-ghost  { background:transparent; color:var(--brand); border:1px solid var(--brand); }
+  .btn-primary{ background:var(--brand); color:#fff; }
+  .btn-green  { background:var(--accent); color:#fff; }
+  .btn-sm     { padding:5px 12px; font-size:12px; }
+
+  /* Body: sidebar + canvas + props */
+  .fb-body { flex:1; display:flex; overflow:hidden; }
+
+  /* Node palette */
+  .fb-palette {
+    width:196px; background:var(--surface); border-right:1px solid var(--border);
+    overflow-y:auto; padding:12px 8px; flex-shrink:0;
+  }
+  .palette-section { font-size:10px; font-weight:700; color:var(--muted); letter-spacing:.08em; padding:8px 6px 4px; text-transform:uppercase; }
+  .palette-node {
+    display:flex; align-items:center; gap:8px; padding:8px 10px;
+    border-radius:6px; cursor:grab; font-size:13px; margin-bottom:2px;
+    border:1px solid var(--border); background:var(--bg);
+    transition: box-shadow .15s;
+  }
+  .palette-node:hover { box-shadow:var(--shadow); background:#fff; }
+  .node-icon { width:26px; height:26px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+  .ni-text  { background:var(--node-text); }
+  .ni-img   { background:var(--node-img); }
+  .ni-menu  { background:var(--node-menu); }
+  .ni-cond  { background:var(--node-cond); }
+  .ni-ai    { background:var(--node-ai); }
+  .ni-delay { background:#E0F2F1; }
+  .ni-wh    { background:#EDE7F6; }
+  .ni-end   { background:var(--node-end); }
+
+  /* Canvas */
+  .fb-canvas {
+    flex:1; background: radial-gradient(circle, #D0D7E0 1px, transparent 1px) 0 0 / 24px 24px;
+    background-color:#E8ECF0; position:relative; overflow:hidden;
+  }
+  /* Mini toolbar flutuante */
+  .canvas-controls {
+    position:absolute; bottom:16px; right:16px; display:flex; gap:6px;
+    background:var(--surface); border-radius:8px; padding:6px; box-shadow:var(--shadow);
+  }
+  .ctrl-btn { width:32px;height:32px; border:1px solid var(--border); background:var(--bg); border-radius:6px; font-size:14px; display:flex;align-items:center;justify-content:center; cursor:pointer; }
+  .ctrl-btn:hover { background:#fff; }
+
+  /* Nodes on canvas */
+  .cn { position:absolute; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.13); }
+  .cn-header { padding:8px 12px 6px; border-radius:10px 10px 0 0; display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; }
+  .cn-body   { padding:8px 12px 10px; background:#fff; border-radius:0 0 10px 10px; font-size:12px; color:var(--text-sm); }
+  .cn-port   { width:12px;height:12px; border-radius:50%; border:2px solid #fff; background:var(--brand); position:absolute; box-shadow:0 1px 3px rgba(0,0,0,.2); }
+  .port-bottom { bottom:-6px; left:50%; transform:translateX(-50%); }
+  .port-top    { top:-6px;    left:50%; transform:translateX(-50%); }
+  .port-right  { right:-6px;  top:50%; transform:translateY(-50%); }
+  .port-left   { left:-6px;   top:50%; transform:translateY(-50%); }
+  .port-green  { background:var(--accent); }
+  .port-red    { background:var(--danger); }
+
+  /* SVG edges */
+  .edges-svg { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
+
+  /* Properties panel */
+  .fb-props {
+    width:280px; background:var(--surface); border-left:1px solid var(--border);
+    overflow-y:auto; flex-shrink:0;
+  }
+  .props-header { padding:14px 16px 10px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; }
+  .props-header h3 { font-size:14px; font-weight:700; }
+  .props-section { padding:12px 16px; border-bottom:1px solid var(--border); }
+  .props-section h4 { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; margin-bottom:8px; }
+  .form-group { margin-bottom:10px; }
+  .form-label { font-size:12px; font-weight:600; color:var(--text-sm); margin-bottom:4px; display:block; }
+  .form-input {
+    width:100%; padding:7px 10px; border:1px solid var(--border); border-radius:6px;
+    font-size:13px; color:var(--text); background:var(--bg);
+  }
+  .form-textarea { min-height:80px; resize:vertical; }
+  .form-select { width:100%; }
+  .var-chip { display:inline-block; background:var(--brand-lt); color:var(--brand); font-size:11px; padding:2px 7px; border-radius:10px; margin:2px; cursor:pointer; font-weight:600; }
+
+  /* ══════════════════════════════════════
+     WIREFRAME 2 — INBOX
+  ══════════════════════════════════════ */
+  #wf-inbox { display:none; height:100vh; flex-direction:column; }
+  #wf-inbox.active { display:flex; }
+
+  .inbox-topbar {
+    background:var(--surface); border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:12px; padding:0 16px; height:52px;
+    box-shadow:var(--shadow); z-index:10;
+  }
+  .inbox-body { flex:1; display:flex; overflow:hidden; }
+
+  /* Sidebar list */
+  .inbox-list {
+    width:320px; flex-shrink:0; border-right:1px solid var(--border);
+    background:var(--surface); display:flex; flex-direction:column; overflow:hidden;
+  }
+  .inbox-filters { padding:10px 12px; border-bottom:1px solid var(--border); display:flex; gap:6px; flex-wrap:wrap; }
+  .filter-pill { padding:4px 10px; border-radius:14px; font-size:12px; font-weight:600; cursor:pointer; border:1px solid var(--border); background:var(--bg); color:var(--text-sm); }
+  .filter-pill.active { background:var(--brand); color:#fff; border-color:var(--brand); }
+  .inbox-search { padding:8px 12px; border-bottom:1px solid var(--border); }
+  .search-box { width:100%; padding:7px 10px 7px 30px; border:1px solid var(--border); border-radius:6px; font-size:13px; background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238B97A8' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") 9px center no-repeat; }
+  .convo-list { flex:1; overflow-y:auto; }
+
+  .convo-item { padding:12px 14px; border-bottom:1px solid var(--border); cursor:pointer; display:flex; gap:10px; position:relative; }
+  .convo-item:hover { background:var(--bg); }
+  .convo-item.selected { background:var(--brand-lt); }
+  .convo-item.unread .convo-preview { font-weight:600; color:var(--text); }
+
+  .avatar { width:40px; height:40px; border-radius:50%; background:var(--brand-lt); display:flex;align-items:center;justify-content:center; font-weight:700; color:var(--brand); font-size:15px; flex-shrink:0; }
+  .convo-info { flex:1; min-width:0; }
+  .convo-name { font-size:13px; font-weight:600; display:flex; align-items:center; gap:6px; }
+  .convo-preview { font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
+  .convo-time { font-size:11px; color:var(--muted); flex-shrink:0; }
+  .unread-badge { background:var(--accent); color:#fff; font-size:10px; font-weight:700; min-width:18px; height:18px; border-radius:9px; display:flex;align-items:center;justify-content:center; padding:0 4px; }
+  .tag-dot { width:8px;height:8px;border-radius:50%;display:inline-block; }
+
+  /* Chat area */
+  .inbox-chat { flex:1; display:flex; flex-direction:column; background:var(--bg); overflow:hidden; }
+  .chat-header { padding:12px 16px; background:var(--surface); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+  .chat-header .name { font-size:15px; font-weight:700; }
+  .chat-header .sub { font-size:12px; color:var(--muted); }
+  .chat-actions { margin-left:auto; display:flex; gap:6px; }
+  .icon-btn { width:34px;height:34px; border:1px solid var(--border); border-radius:8px; background:var(--bg); display:flex;align-items:center;justify-content:center; cursor:pointer; font-size:15px; }
+
+  .chat-messages { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px; }
+  .msg { max-width:72%; display:flex; flex-direction:column; gap:2px; }
+  .msg.in  { align-self:flex-start; }
+  .msg.out { align-self:flex-end; }
+  .msg-bubble { padding:9px 13px; border-radius:12px; font-size:13px; line-height:1.5; }
+  .msg.in  .msg-bubble { background:#fff; border-bottom-left-radius:3px; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+  .msg.out .msg-bubble { background:#DCF8C6; border-bottom-right-radius:3px; }
+  .msg-bot .msg-bubble  { background:#EEF7FF; border-bottom-left-radius:3px; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+  .msg-time { font-size:10px; color:var(--muted); padding:0 4px; }
+  .msg-status { font-size:10px; color:#4FC3F7; }
+  .bot-label { font-size:10px; color:var(--brand); font-weight:600; margin-bottom:2px; display:flex; align-items:center; gap:3px; }
+
+  .chat-composer { background:var(--surface); border-top:1px solid var(--border); padding:10px 14px; }
+  .bot-toggle { display:flex; align-items:center; gap:8px; padding:6px 10px; background:var(--brand-lt); border-radius:6px; margin-bottom:8px; font-size:12px; }
+  .toggle-switch { width:34px;height:18px;border-radius:9px;background:var(--brand);position:relative;cursor:pointer; }
+  .toggle-switch::after { content:''; width:14px;height:14px;background:#fff;border-radius:50%;position:absolute;top:2px;right:2px; transition:.2s; }
+  .toggle-switch.off { background:var(--border); }
+  .toggle-switch.off::after { right:auto;left:2px; }
+
+  .composer-row { display:flex; gap:8px; align-items:flex-end; }
+  .composer-input { flex:1; padding:9px 12px; border:1px solid var(--border); border-radius:8px; font-size:13px; resize:none; min-height:38px; max-height:100px; background:var(--bg); }
+  .attach-btn { width:38px;height:38px; border:1px solid var(--border); border-radius:8px; background:var(--bg); display:flex;align-items:center;justify-content:center; font-size:18px; cursor:pointer; }
+  .send-btn { width:38px;height:38px; border-radius:8px; background:var(--accent); border:none; display:flex;align-items:center;justify-content:center; cursor:pointer; font-size:18px; }
+
+  /* Contact info panel */
+  .inbox-contact { width:300px; flex-shrink:0; border-left:1px solid var(--border); background:var(--surface); overflow-y:auto; }
+  .contact-header { padding:20px 16px 12px; text-align:center; border-bottom:1px solid var(--border); }
+  .contact-avatar { width:64px;height:64px; border-radius:50%; background:var(--brand-lt); margin:0 auto 10px; display:flex;align-items:center;justify-content:center; font-size:26px; font-weight:700; color:var(--brand); }
+  .contact-name { font-size:16px; font-weight:700; }
+  .contact-phone { font-size:13px; color:var(--muted); margin-top:2px; }
+  .contact-section { padding:12px 16px; border-bottom:1px solid var(--border); }
+  .contact-section h4 { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; margin-bottom:8px; }
+  .info-row { display:flex; justify-content:space-between; align-items:center; padding:4px 0; font-size:13px; }
+  .info-label { color:var(--muted); font-size:12px; }
+  .action-list { display:flex; flex-wrap:wrap; gap:6px; }
+  .action-chip { padding:5px 10px; border-radius:14px; font-size:12px; font-weight:600; border:1px solid var(--border); cursor:pointer; background:var(--bg); }
+  .action-chip:hover { background:var(--brand-lt); color:var(--brand); }
+
+  /* ══════════════════════════════════════
+     WIREFRAME 3 — DASHBOARD
+  ══════════════════════════════════════ */
+  #wf-dash { display:none; }
+  #wf-dash.active { display:block; padding:24px; background:var(--bg); min-height:100vh; }
+  .dash-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:20px; }
+  .kpi-card { background:var(--surface); border-radius:12px; padding:20px; box-shadow:var(--shadow); border-left:4px solid var(--brand); }
+  .kpi-card.green  { border-color:var(--accent); }
+  .kpi-card.orange { border-color:var(--warn); }
+  .kpi-card.red    { border-color:var(--danger); }
+  .kpi-label { font-size:12px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.06em; }
+  .kpi-value { font-size:32px; font-weight:800; margin:6px 0 2px; }
+  .kpi-delta { font-size:12px; color:var(--accent); font-weight:600; }
+  .kpi-delta.neg { color:var(--danger); }
+  .chart-row { display:grid; grid-template-columns:2fr 1fr; gap:16px; margin-bottom:20px; }
+  .chart-card { background:var(--surface); border-radius:12px; padding:20px; box-shadow:var(--shadow); }
+  .chart-title { font-size:14px; font-weight:700; margin-bottom:14px; }
+  .chart-placeholder { height:200px; background:linear-gradient(135deg,var(--brand-lt) 0%,var(--bg) 100%); border-radius:8px; display:flex;align-items:center;justify-content:center; color:var(--muted); font-size:13px; position:relative; overflow:hidden; }
+  .chart-bars { display:flex; align-items:flex-end; gap:6px; height:160px; padding:10px; }
+  .bar { flex:1; border-radius:4px 4px 0 0; background:var(--brand); opacity:.75; min-width:18px; }
+  .bar.accent { background:var(--accent); }
+  .bar-label { font-size:9px; color:var(--muted); text-align:center; margin-top:2px; }
+
+  /* ══ NAV GERAL ══ */
+  .sidebar-global { width:58px; background:var(--brand-dk); display:flex; flex-direction:column; align-items:center; padding:12px 0; gap:4px; }
+  .app-outer { display:flex; height:100vh; overflow:hidden; }
+  .app-content { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .nav-item { width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.5);font-size:20px;cursor:pointer;transition:.15s; }
+  .nav-item:hover,.nav-item.active { background:rgba(255,255,255,.15);color:#fff; }
+  .nav-logo { font-size:22px;margin-bottom:8px; }
+  .nav-spacer { flex:1; }
+
+  /* Annotations layer */
+  .ann { position:absolute; z-index:100; }
+</style>
+</head>
+<body>
+
+<div class="app-outer">
+
+  <!-- ── GLOBAL SIDEBAR ── -->
+  <div class="sidebar-global">
+    <div class="nav-logo">💬</div>
+    <div class="nav-item active" onclick="show('dash')" title="Dashboard">📊</div>
+    <div class="nav-item" onclick="show('inbox')" title="Inbox">💬</div>
+    <div class="nav-item" onclick="show('flow')" title="Fluxos">⚡</div>
+    <div class="nav-item" title="Campanhas">📢</div>
+    <div class="nav-item" title="Contatos">👥</div>
+    <div class="nav-item" title="Instâncias">📱</div>
+    <div class="nav-spacer"></div>
+    <div class="nav-item" title="Configurações">⚙️</div>
+    <div class="nav-item" title="Minha conta">👤</div>
+  </div>
+
+  <!-- ── MAIN CONTENT ── -->
+  <div class="app-content">
+
+    <!-- PAGE TABS -->
+    <div class="page-tabs">
+      <button class="active" onclick="show('dash')">📊 Dashboard</button>
+      <button onclick="show('inbox')">💬 Inbox</button>
+      <button onclick="show('flow')">⚡ Flow Builder</button>
+    </div>
+
+    <!-- ══════════════════════ DASHBOARD ══════════════════════ -->
+    <div id="wf-dash" class="wireframe active">
+      <div style="padding:20px 24px 0; display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+        <h1 style="font-size:20px; font-weight:800;">Dashboard</h1>
+        <select class="form-input" style="width:140px; padding:6px 10px; font-size:13px;">
+          <option>Últimos 7 dias</option>
+          <option>Últimos 30 dias</option>
+          <option>Hoje</option>
+        </select>
+        <select class="form-input" style="width:160px; padding:6px 10px; font-size:13px;">
+          <option>Todas as instâncias</option>
+          <option>📱 Suporte - (27) 9988...</option>
+        </select>
+      </div>
+
+      <div style="padding:0 24px 24px;">
+        <!-- KPIs -->
+        <div class="dash-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Mensagens Recebidas</div>
+            <div class="kpi-value" style="color:var(--brand);">1.847</div>
+            <div class="kpi-delta">↑ 12% vs semana anterior</div>
+          </div>
+          <div class="kpi-card green">
+            <div class="kpi-label">Conversas Abertas</div>
+            <div class="kpi-value" style="color:var(--accent);">43</div>
+            <div class="kpi-delta">↓ 8% vs semana anterior</div>
+          </div>
+          <div class="kpi-card orange">
+            <div class="kpi-label">T.M. Resposta</div>
+            <div class="kpi-value" style="color:var(--warn);">2,4<span style="font-size:16px;font-weight:400">min</span></div>
+            <div class="kpi-delta">↑ 0,3min vs semana anterior</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Resolvidas pelo Bot</div>
+            <div class="kpi-value" style="color:var(--brand);">78<span style="font-size:16px;font-weight:400">%</span></div>
+            <div class="kpi-delta">↑ 5% vs semana anterior</div>
+          </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="chart-row">
+          <div class="chart-card">
+            <div class="chart-title">Volume de Mensagens por Dia</div>
+            <div class="chart-placeholder" style="align-items:flex-end;padding:10px 16px;">
+              <div class="chart-bars" style="width:100%;height:100%;">
+                <div style="display:flex;flex-direction:column;align-items:center;flex:1;justify-content:flex-end;">
+                  <div class="bar" style="height:45%;"></div>
+                  <div class="bar-label">Seg</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:center;flex:1;justify-content:flex-end;">
+                  <div class="bar" style="height:70%;"></div>
+                  <div class="bar-label">Ter</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:center;flex:1;justify-content:flex-end;">
+                  <div class="bar" style="height:55%;"></div>
+                  <div class="bar-label">Qua</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:center;flex:1;justify-content:flex-end;">
+                  <div class="bar" style="height:85%;"></div>
+                  <div class="bar-label">Qui</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:center;flex:1;justify-content:flex-end;">
+                  <div class="bar accent" style="height:95%;"></div>
+                  <div class="bar-label">Sex</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:center;flex:1;justify-content:flex-end;">
+                  <div class="bar" style="height:40%;"></div>
+                  <div class="bar-label">Sáb</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:center;flex:1;justify-content:flex-end;">
+                  <div class="bar" style="height:25%;"></div>
+                  <div class="bar-label">Dom</div>
+                </div>
+              </div>
+              <div style="position:absolute;top:10px;right:14px;display:flex;gap:12px;font-size:11px;color:var(--text-sm);">
+                <span>🟦 Recebidas</span><span>🟩 Enviadas</span>
+              </div>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Conversas por Status</div>
+            <div class="chart-placeholder" style="flex-direction:column;gap:8px;padding:16px;">
+              <div style="width:100%;display:flex;flex-direction:column;gap:6px;">
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;">
+                  <div style="height:10px;flex:2;background:var(--brand);border-radius:4px;"></div>
+                  <span style="width:60px;color:var(--text-sm)">Resolvidas</span>
+                  <b>68%</b>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;">
+                  <div style="height:10px;flex:1;background:var(--accent);border-radius:4px;"></div>
+                  <span style="width:60px;color:var(--text-sm)">Abertas</span>
+                  <b>24%</b>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;">
+                  <div style="height:10px;width:20%;background:var(--warn);border-radius:4px;"></div>
+                  <span style="width:60px;color:var(--text-sm)">Pendentes</span>
+                  <b>8%</b>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Instances Status -->
+        <div class="chart-card" style="margin-bottom:0;">
+          <div class="chart-title">Status das Instâncias</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;">
+            <div style="padding:12px 16px;background:var(--bg);border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;gap:10px;">
+              <div style="width:10px;height:10px;border-radius:50%;background:var(--accent);"></div>
+              <span style="font-size:13px;font-weight:600;">Suporte Principal</span>
+              <span style="font-size:12px;color:var(--muted);">+55 27 99988-7766</span>
+              <span class="badge badge-pub">Conectado</span>
+            </div>
+            <div style="padding:12px 16px;background:var(--bg);border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;gap:10px;">
+              <div style="width:10px;height:10px;border-radius:50%;background:var(--danger);"></div>
+              <span style="font-size:13px;font-weight:600;">Vendas</span>
+              <span style="font-size:12px;color:var(--muted);">+55 27 99777-5544</span>
+              <span class="badge badge-draft">Desconectado</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════ INBOX ══════════════════════ -->
+    <div id="wf-inbox" class="wireframe">
+      <div class="inbox-body">
+        <!-- Column 1: conversation list -->
+        <div class="inbox-list">
+          <div class="inbox-filters">
+            <span class="filter-pill active">Todas</span>
+            <span class="filter-pill">Abertas</span>
+            <span class="filter-pill">Pendentes</span>
+            <span class="filter-pill">Minhas</span>
+            <span class="filter-pill">Bot ✦</span>
+          </div>
+          <div class="inbox-search">
+            <input class="search-box" placeholder="Buscar por nome ou número…" readonly>
+          </div>
+          <div class="convo-list">
+            <!-- Item 1: selected -->
+            <div class="convo-item selected">
+              <div class="avatar">JS</div>
+              <div class="convo-info">
+                <div class="convo-name">
+                  João Silva
+                  <div class="tag-dot" style="background:#E74C3C;" title="Lead Quente"></div>
+                  <div class="tag-dot" style="background:#27AE60;" title="Cliente"></div>
+                </div>
+                <div class="convo-preview">Sim, quero saber mais sobre o plano…</div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+                <div class="convo-time">14:32</div>
+                <div class="unread-badge">3</div>
+              </div>
+            </div>
+            <!-- Item 2 -->
+            <div class="convo-item">
+              <div class="avatar" style="background:#F3E5F5;color:#7B1FA2;">MA</div>
+              <div class="convo-info">
+                <div class="convo-name">Maria Aparecida</div>
+                <div class="convo-preview">🤖 Bem-vindo! Como posso ajudar?</div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+                <div class="convo-time">13:51</div>
+                <div style="font-size:10px;background:var(--brand-lt);color:var(--brand);padding:2px 6px;border-radius:8px;font-weight:600;">Bot</div>
+              </div>
+            </div>
+            <!-- Item 3 -->
+            <div class="convo-item unread">
+              <div class="avatar" style="background:#E8F5E9;color:#2E7D32;">PR</div>
+              <div class="convo-info">
+                <div class="convo-name">Pedro Rocha</div>
+                <div class="convo-preview">Boa tarde, fiz o pedido #1234 e…</div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+                <div class="convo-time">11:20</div>
+                <div class="unread-badge">1</div>
+              </div>
+            </div>
+            <!-- Item 4 -->
+            <div class="convo-item">
+              <div class="avatar" style="background:#FFF3E0;color:#E65100;">CL</div>
+              <div class="convo-info">
+                <div class="convo-name">Carla Lima
+                  <span style="font-size:10px;background:#E8F5E9;color:#2E7D32;padding:1px 6px;border-radius:8px;font-weight:600;">Resolvida</span>
+                </div>
+                <div class="convo-preview">Obrigada pelo atendimento! 😊</div>
+              </div>
+              <div class="convo-time">Ontem</div>
+            </div>
+            <!-- Item 5 -->
+            <div class="convo-item">
+              <div class="avatar" style="background:#E3F2FD;color:#1565C0;">RM</div>
+              <div class="convo-info">
+                <div class="convo-name">Roberto Mendes</div>
+                <div class="convo-preview">Qual o horário de funcionamento?</div>
+              </div>
+              <div class="convo-time">Ontem</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Column 2: chat -->
+        <div class="inbox-chat">
+          <div class="chat-header">
+            <div class="avatar">JS</div>
+            <div>
+              <div class="name">João Silva</div>
+              <div class="sub">+55 27 99123-4567 · 📱 Suporte Principal · 🤖 Bot ativo</div>
+            </div>
+            <div class="chat-actions">
+              <div class="icon-btn" title="Atribuir">👤</div>
+              <div class="icon-btn" title="Adicionar tag">🏷️</div>
+              <div class="icon-btn" title="Marcar como resolvida">✅</div>
+              <div class="icon-btn" title="Bloquear">🚫</div>
+              <div class="icon-btn" title="Mais opções">⋯</div>
+            </div>
+          </div>
+
+          <div class="chat-messages">
+            <!-- Date separator -->
+            <div style="text-align:center;"><span style="background:rgba(0,0,0,.08);padding:3px 12px;border-radius:12px;font-size:11px;color:var(--muted);">Hoje</span></div>
+
+            <div class="msg in msg-bot">
+              <div class="bot-label">⚡ Bot — Fluxo Boas-vindas</div>
+              <div class="msg-bubble">Olá! 👋 Bem-vindo à nossa loja. Como posso te ajudar hoje?<br><br>1️⃣ Ver produtos<br>2️⃣ Meu pedido<br>3️⃣ Falar com atendente</div>
+              <div class="msg-time">14:28</div>
+            </div>
+
+            <div class="msg out">
+              <div class="msg-bubble">3</div>
+              <div style="display:flex;gap:4px;justify-content:flex-end;">
+                <div class="msg-time">14:29</div>
+                <div class="msg-status">✓✓</div>
+              </div>
+            </div>
+
+            <div class="msg in msg-bot">
+              <div class="bot-label">⚡ Bot — Transferindo</div>
+              <div class="msg-bubble">Ok! Transferindo para um de nossos atendentes. Aguarde um momento. 😊</div>
+              <div class="msg-time">14:29</div>
+            </div>
+
+            <div style="text-align:center;"><span style="background:#FFF3E0;padding:3px 12px;border-radius:12px;font-size:11px;color:var(--warn);font-weight:600;">🤖 Bot desativado — Carlos assumiu o atendimento</span></div>
+
+            <div class="msg in">
+              <div class="msg-bubble">Olá João! Aqui é o Carlos. Vi que você quer falar com um atendente. Em que posso ajudar?</div>
+              <div class="msg-time">14:30</div>
+            </div>
+
+            <div class="msg out">
+              <div class="msg-bubble">Sim, quero saber mais sobre o plano PRO de vocês</div>
+              <div style="display:flex;gap:4px;justify-content:flex-end;">
+                <div class="msg-time">14:32</div>
+                <div class="msg-status">✓✓</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-composer">
+            <div class="bot-toggle">
+              <div class="toggle-switch off"></div>
+              <span style="font-size:12px;color:var(--text-sm);">Bot desativado para esta conversa</span>
+              <button class="btn btn-ghost btn-sm" style="margin-left:auto;">Reativar bot</button>
+            </div>
+            <div class="composer-row">
+              <div class="attach-btn" title="Anexar arquivo">📎</div>
+              <div class="attach-btn" title="Emoji">😊</div>
+              <textarea class="composer-input" placeholder="Digite uma mensagem…"></textarea>
+              <div class="send-btn">➤</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Column 3: contact info -->
+        <div class="inbox-contact">
+          <div class="contact-header">
+            <div class="contact-avatar">JS</div>
+            <div class="contact-name">João Silva</div>
+            <div class="contact-phone">+55 27 99123-4567</div>
+            <div style="display:flex;gap:6px;justify-content:center;margin-top:8px;">
+              <div class="tag-dot" style="background:#E74C3C;width:14px;height:14px;" title="Lead Quente"></div>
+              <div class="tag-dot" style="background:#27AE60;width:14px;height:14px;" title="Cliente"></div>
+            </div>
+          </div>
+
+          <div class="contact-section">
+            <h4>Informações</h4>
+            <div class="info-row"><span class="info-label">Agente</span><span>Carlos M.</span></div>
+            <div class="info-row"><span class="info-label">Instância</span><span>📱 Suporte</span></div>
+            <div class="info-row"><span class="info-label">Desde</span><span>Jun 2025</span></div>
+            <div class="info-row"><span class="info-label">Conversas</span><span>4 total</span></div>
+          </div>
+
+          <div class="contact-section">
+            <h4>Tags</h4>
+            <div class="action-list">
+              <span class="action-chip" style="background:#FADBD8;color:#C0392B;border-color:#F1948A;">🔴 Lead Quente</span>
+              <span class="action-chip" style="background:#D5F5E3;color:#1E8449;border-color:#A9DFBF;">🟢 Cliente</span>
+              <span class="action-chip">+ Add tag</span>
+            </div>
+          </div>
+
+          <div class="contact-section">
+            <h4>Ações</h4>
+            <div class="action-list">
+              <span class="action-chip">✅ Resolver</span>
+              <span class="action-chip">📋 Nota interna</span>
+              <span class="action-chip">🚫 Bloquear</span>
+              <span class="action-chip">📤 Transferir</span>
+            </div>
+          </div>
+
+          <div class="contact-section">
+            <h4>Histórico</h4>
+            <div style="font-size:12px;color:var(--text-sm);display:flex;flex-direction:column;gap:6px;">
+              <div style="padding:8px;background:var(--bg);border-radius:6px;">
+                <div style="font-weight:600;">Campanha Black Friday</div>
+                <div style="color:var(--muted);">📤 Enviado em 15/11/24</div>
+              </div>
+              <div style="padding:8px;background:var(--bg);border-radius:6px;">
+                <div style="font-weight:600;">Conversa — Suporte</div>
+                <div style="color:var(--muted);">✅ Resolvida em 03/06/25</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════ FLOW BUILDER ══════════════════════ -->
+    <div id="wf-flow" class="wireframe">
+      <div id="wf-flow-inner" style="height:calc(100vh - 88px); display:flex; flex-direction:column;">
+
+        <!-- Topbar -->
+        <div class="fb-topbar">
+          <span style="color:var(--muted);font-size:13px;cursor:pointer;">⬅ Fluxos</span>
+          <span style="color:var(--border);">/</span>
+          <span class="flow-name">Fluxo de Boas-vindas</span>
+          <span class="badge badge-draft">Rascunho</span>
+          <div class="spacer"></div>
+          <select class="form-input" style="width:160px;font-size:13px;padding:5px 8px;">
+            <option>📱 Suporte Principal</option>
+            <option>📱 Vendas</option>
+          </select>
+          <select class="form-input" style="width:140px;font-size:13px;padding:5px 8px;">
+            <option>Trigger: Palavra-chave</option>
+            <option>Trigger: 1ª mensagem</option>
+            <option>Trigger: Qualquer msg</option>
+          </select>
+          <button class="btn btn-ghost">Histórico</button>
+          <button class="btn btn-ghost">Testar fluxo</button>
+          <button class="btn btn-primary">Salvar</button>
+          <button class="btn btn-green">🚀 Publicar</button>
+        </div>
+
+        <div class="fb-body">
+          <!-- Palette -->
+          <div class="fb-palette">
+            <div class="palette-section">Mensagens</div>
+            <div class="palette-node"><div class="node-icon ni-text">💬</div>Texto</div>
+            <div class="palette-node"><div class="node-icon ni-img">🖼️</div>Imagem</div>
+            <div class="palette-node"><div class="node-icon ni-img" style="background:#E8EAF6;">🎵</div>Áudio</div>
+            <div class="palette-node"><div class="node-icon ni-img" style="background:#F3E5F5;">🎬</div>Vídeo</div>
+            <div class="palette-node"><div class="node-icon ni-img" style="background:#FBE9E7;">📄</div>Documento</div>
+
+            <div class="palette-section">Interação</div>
+            <div class="palette-node"><div class="node-icon ni-menu">📋</div>Menu de opções</div>
+            <div class="palette-node"><div class="node-icon ni-cond">🔀</div>Condição</div>
+            <div class="palette-node"><div class="node-icon ni-delay">⏱️</div>Delay</div>
+
+            <div class="palette-section">Avançado</div>
+            <div class="palette-node"><div class="node-icon ni-ai">🤖</div>IA (Groq)</div>
+            <div class="palette-node"><div class="node-icon ni-wh">🔗</div>Webhook</div>
+            <div class="palette-node"><div class="node-icon" style="background:#E8F5E9;">👤</div>Atribuir agente</div>
+            <div class="palette-node"><div class="node-icon ni-end">🏁</div>Fim do fluxo</div>
+          </div>
+
+          <!-- Canvas -->
+          <div class="fb-canvas">
+            <svg class="edges-svg">
+              <!-- Trigger → Boas-vindas -->
+              <path d="M 290 165 C 290 195 290 210 290 220" stroke="#1D6FA4" stroke-width="2" fill="none" stroke-dasharray="0" marker-end="url(#arrow)"/>
+              <!-- Boas-vindas → Menu -->
+              <path d="M 290 320 C 290 350 290 360 290 370" stroke="#1D6FA4" stroke-width="2" fill="none"/>
+              <!-- Menu → opção 1 (Produtos) -->
+              <path d="M 230 470 C 180 490 150 500 150 510" stroke="#25D366" stroke-width="1.5" fill="none" stroke-dasharray="4"/>
+              <!-- Menu → opção 3 (Agente) -->
+              <path d="M 350 470 C 400 490 430 500 430 510" stroke="#E67E22" stroke-width="1.5" fill="none" stroke-dasharray="4"/>
+              <!-- Menu → opção 2 (IA) -->
+              <path d="M 290 470 C 290 490 290 500 290 510" stroke="#9C27B0" stroke-width="1.5" fill="none" stroke-dasharray="4"/>
+              <defs>
+                <marker id="arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                  <path d="M0,0 L8,4 L0,8 Z" fill="#1D6FA4"/>
+                </marker>
+              </defs>
+            </svg>
+
+            <!-- Node: Trigger START -->
+            <div class="cn" style="left:220px;top:100px;width:140px;">
+              <div class="cn-header" style="background:#25D366;color:#fff;">
+                ▶ Trigger
+              </div>
+              <div class="cn-body" style="font-size:11px;">
+                Palavra-chave: <b>"oi", "olá"</b>
+              </div>
+              <div class="cn-port port-bottom"></div>
+            </div>
+
+            <!-- Node: Text "Boas-vindas" -->
+            <div class="cn" style="left:200px;top:220px;width:180px;">
+              <div class="cn-header" style="background:var(--node-text);color:#1B5E20;">
+                💬 Texto
+              </div>
+              <div class="cn-body">
+                Olá! 👋 Bem-vindo à nossa loja. Como posso te ajudar hoje?
+              </div>
+              <div class="cn-port port-top"></div>
+              <div class="cn-port port-bottom"></div>
+            </div>
+
+            <!-- Node: Menu -->
+            <div class="cn" style="left:195px;top:370px;width:190px;">
+              <div class="cn-header" style="background:var(--node-menu);color:#5D4037;">
+                📋 Menu de opções
+              </div>
+              <div class="cn-body">
+                <div style="margin-bottom:4px;font-weight:600;">Escolha uma opção:</div>
+                <div>1️⃣ Ver produtos</div>
+                <div>2️⃣ Dúvida (IA)</div>
+                <div>3️⃣ Falar com atendente</div>
+              </div>
+              <div class="cn-port port-top"></div>
+              <div class="cn-port port-bottom" style="background:var(--accent);" title="Opção 1"></div>
+            </div>
+
+            <!-- Node: AI -->
+            <div class="cn" style="left:210px;top:510px;width:160px;">
+              <div class="cn-header" style="background:var(--node-ai);color:#4A148C;">
+                🤖 IA — Groq
+              </div>
+              <div class="cn-body" style="font-size:11px;">
+                Modelo: llama-3.1-70b<br>Contexto: 10 mensagens
+              </div>
+              <div class="cn-port port-top"></div>
+              <div class="cn-port port-bottom"></div>
+            </div>
+
+            <!-- Node: Assign agent -->
+            <div class="cn" style="left:360px;top:510px;width:140px;">
+              <div class="cn-header" style="background:#E8F5E9;color:#1B5E20;">
+                👤 Atribuir agente
+              </div>
+              <div class="cn-body" style="font-size:11px;">
+                Fila: Suporte<br>Notifica agentes
+              </div>
+              <div class="cn-port port-top"></div>
+              <div class="cn-port port-bottom"></div>
+            </div>
+
+            <!-- Node: Products (esquerda) -->
+            <div class="cn" style="left:60px;top:510px;width:130px;">
+              <div class="cn-header" style="background:var(--node-img);color:#0D47A1;">
+                🖼️ Imagem
+              </div>
+              <div class="cn-body" style="font-size:11px;">
+                Catálogo de produtos<br>(imagem + legenda)
+              </div>
+              <div class="cn-port port-top"></div>
+              <div class="cn-port port-bottom"></div>
+            </div>
+
+            <!-- Mini toolbar -->
+            <div class="canvas-controls">
+              <div class="ctrl-btn" title="Zoom in">＋</div>
+              <div class="ctrl-btn" title="Zoom out">－</div>
+              <div class="ctrl-btn" title="Centralizar">⊡</div>
+              <div class="ctrl-btn" title="Minimapa">🗺</div>
+            </div>
+
+            <!-- Annotations -->
+            <div class="ann" style="top:90px;left:370px;">
+              <div class="annotation">Gatilho de entrada do fluxo</div>
+            </div>
+            <div class="ann" style="top:360px;left:400px;">
+              <div class="annotation">Cada saída = 1 opção do menu</div>
+            </div>
+          </div>
+
+          <!-- Properties panel -->
+          <div class="fb-props">
+            <div class="props-header">
+              <div class="node-icon ni-menu" style="width:32px;height:32px;font-size:16px;">📋</div>
+              <h3>Menu de opções</h3>
+            </div>
+
+            <div class="props-section">
+              <h4>Mensagem</h4>
+              <div class="form-group">
+                <label class="form-label">Texto da pergunta</label>
+                <textarea class="form-input form-textarea">Como posso te ajudar hoje? Escolha uma opção:</textarea>
+              </div>
+              <div style="margin-bottom:8px;">
+                <div class="form-label">Variáveis disponíveis</div>
+                <div>
+                  <span class="var-chip">{{nome}}</span>
+                  <span class="var-chip">{{numero}}</span>
+                  <span class="var-chip">{{hora}}</span>
+                  <span class="var-chip">{{data}}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="props-section">
+              <h4>Opções</h4>
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <div style="display:flex;gap:6px;align-items:center;">
+                  <div style="width:24px;height:24px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">1</div>
+                  <input class="form-input" style="flex:1;padding:6px 8px;font-size:12px;" value="Ver produtos" readonly>
+                  <div style="cursor:pointer;color:var(--danger);">✕</div>
+                </div>
+                <div style="display:flex;gap:6px;align-items:center;">
+                  <div style="width:24px;height:24px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">2</div>
+                  <input class="form-input" style="flex:1;padding:6px 8px;font-size:12px;" value="Dúvida (IA)" readonly>
+                  <div style="cursor:pointer;color:var(--danger);">✕</div>
+                </div>
+                <div style="display:flex;gap:6px;align-items:center;">
+                  <div style="width:24px;height:24px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">3</div>
+                  <input class="form-input" style="flex:1;padding:6px 8px;font-size:12px;" value="Falar com atendente" readonly>
+                  <div style="cursor:pointer;color:var(--danger);">✕</div>
+                </div>
+                <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:4px;">+ Adicionar opção</button>
+              </div>
+            </div>
+
+            <div class="props-section">
+              <h4>Comportamento</h4>
+              <div class="form-group">
+                <label class="form-label">Resposta inválida (msg de erro)</label>
+                <input class="form-input" value="Opção inválida. Digite 1, 2 ou 3." readonly>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Tentativas antes de encerrar</label>
+                <select class="form-input form-select">
+                  <option>3 tentativas</option>
+                  <option>2 tentativas</option>
+                  <option>Ilimitado</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="padding:12px 16px;">
+              <button class="btn btn-primary" style="width:100%;margin-bottom:8px;">Salvar nó</button>
+              <button class="btn btn-ghost" style="width:100%;color:var(--danger);border-color:var(--danger);">Excluir nó</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- .app-content -->
+</div><!-- .app-outer -->
+
+<script>
+function show(page) {
+  document.querySelectorAll('.wireframe').forEach(w => w.classList.remove('active'));
+  document.querySelectorAll('.page-tabs button').forEach(b => b.classList.remove('active'));
+  document.getElementById('wf-' + page).classList.add('active');
+  const tabs = { dash: 0, inbox: 1, flow: 2 };
+  document.querySelectorAll('.page-tabs button')[tabs[page]].classList.add('active');
+}
+// Sidebar nav clicks
+document.querySelectorAll('.nav-item').forEach((el, i) => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+  });
+});
+</script>
+</body>
+</html>

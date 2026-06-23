@@ -1,0 +1,44 @@
+@use "styles/variables" as v;
+@use "styles/theme";
+@use "styles/mixins";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  font-family: v.$font-family;
+  font-size: v.$font-size-md;
+  color: v.$text;
+  background: v.$bg;
+  -webkit-font-smoothing: antialiased;
+}
+
+// Scrollbar global
+* {
+  @include mixins.scrollbar;
+}
+
+// Utilitários
+.truncate {
+  @include mixins.truncate;
+}
+.flex-center {
+  @include mixins.flex-center;
+}
+.card {
+  @include mixins.card;
+}
+
+// Animação de loading
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

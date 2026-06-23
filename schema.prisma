@@ -1,0 +1,646 @@
+// ============================================================
+// WhatFlow — Prisma Schema v1.0
+// Stack: Supabase (PostgreSQL 15) + Prisma ORM
+// Multi-tenancy via Row Level Security (RLS)
+// ============================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [pgcrypto, pg_trgm, uuid_ossp]
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum TenantPlan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  AGENT
+  VIEWER
+}
+
+enum InstanceStatus {
+  PENDING
+  QR_PENDING
+  CONNECTED
+  DISCONNECTED
+  BANNED
+}
+
+enum FlowStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum FlowTriggerType {
+  KEYWORD        // Ativado por palavra-chave
+  ANY_MESSAGE    // Qualquer mensagem nova
+  FIRST_MESSAGE  // Primeiro contato do número
+  SCHEDULE       // Agendado (cron)
+}
+
+enum NodeType {
+  TEXT
+  IMAGE
+  AUDIO
+  VIDEO
+  DOCUMENT
+  MENU
+  CONDITION
+  DELAY
+  VARIABLE
+  WEBHOOK_CALL
+  AI
+  ASSIGN_AGENT
+  END
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  AUDIO
+  VIDEO
+  DOCUMENT
+  STICKER
+  LOCATION
+  CONTACT
+  TEMPLATE
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum ConversationStatus {
+  OPEN
+  PENDING
+  RESOLVED
+  SPAM
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  PAUSED
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum CampaignContactStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  SKIPPED
+}
+
+enum AiProvider {
+  GROQ
+  OLLAMA
+  OPENAI_COMPATIBLE
+}
+
+enum WebhookEvent {
+  MESSAGE_RECEIVED
+  MESSAGE_SENT
+  FLOW_STARTED
+  FLOW_COMPLETED
+  FLOW_FAILED
+  LEAD_CAPTURED
+  AGENT_ASSIGNED
+  CONVERSATION_RESOLVED
+  CAMPAIGN_COMPLETED
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  RETRYING
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  PUBLISH
+  INVITE
+  ASSIGN
+}
+
+// ============================================================
+// TENANTS — Empresas/Organizações
+// ============================================================
+
+model Tenant {
+  id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String     @db.VarChar(200)
+  slug      String     @unique @db.VarChar(100)
+  plan      TenantPlan @default(FREE)
+  isActive  Boolean    @default(true) @map("is_active")
+  settings  Json       @default("{}") // { timezone, language, logo_url, whatsapp_limit, ai_tokens_limit }
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  users          User[]
+  instances      Instance[]
+  flows          Flow[]
+  contacts       Contact[]
+  conversations  Conversation[]
+  campaigns      Campaign[]
+  tags           Tag[]
+  aiConfigs      AiConfig[]
+  webhooks       Webhook[]
+  auditLogs      AuditLog[]
+  apiKeys        ApiKey[]
+
+  @@map("tenants")
+}
+
+// ============================================================
+// USERS — Usuários do sistema
+// ============================================================
+
+model User {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  supabaseUid  String   @unique @map("supabase_uid") @db.Uuid // ID do Supabase Auth
+  email        String   @db.VarChar(320)
+  fullName     String   @map("full_name") @db.VarChar(200)
+  avatarUrl    String?  @map("avatar_url") @db.VarChar(500)
+  role         UserRole @default(AGENT)
+  isActive     Boolean  @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant               Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignedConversations Conversation[] @relation("AssignedAgent")
+  sentMessages         Message[]      @relation("SentByAgent")
+  auditLogs            AuditLog[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([supabaseUid])
+  @@map("users")
+}
+
+// ============================================================
+// API KEYS — Chaves de API para integração externa
+// ============================================================
+
+model ApiKey {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  name      String   @db.VarChar(100)
+  keyHash   String   @unique @map("key_hash") @db.VarChar(64) // SHA-256 da chave
+  prefix    String   @db.VarChar(10) // ex: "wf_live_" para identificação
+  lastUsedAt DateTime? @map("last_used_at")
+  expiresAt  DateTime? @map("expires_at")
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("api_keys")
+}
+
+// ============================================================
+// INSTANCES — Conexões WhatsApp via Evolution API
+// ============================================================
+
+model Instance {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String         @map("tenant_id") @db.Uuid
+  name            String         @db.VarChar(100)
+  phone           String?        @db.VarChar(20)      // Número após conectar
+  evolutionKey    String         @map("evolution_key") @db.VarChar(200) // Instance key na Evolution API
+  webhookUrl      String?        @map("webhook_url") @db.VarChar(500)
+  status          InstanceStatus @default(PENDING)
+  qrCode          String?        @map("qr_code") @db.Text
+  qrExpiresAt     DateTime?      @map("qr_expires_at")
+  connectedAt     DateTime?      @map("connected_at")
+  disconnectedAt  DateTime?      @map("disconnected_at")
+  settings        Json           @default("{}") // { send_delay_min, send_delay_max, business_hours, auto_read }
+  isActive        Boolean        @default(true) @map("is_active")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  flows         Flow[]
+  conversations Conversation[]
+  campaigns     Campaign[]
+
+  @@unique([tenantId, evolutionKey])
+  @@index([tenantId])
+  @@index([status])
+  @@map("instances")
+}
+
+// ============================================================
+// FLOWS — Fluxos de chatbot
+// ============================================================
+
+model Flow {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String          @map("tenant_id") @db.Uuid
+  instanceId    String?         @map("instance_id") @db.Uuid // null = aplicável a todas
+  name          String          @db.VarChar(200)
+  description   String?         @db.VarChar(500)
+  triggerType   FlowTriggerType @map("trigger_type")
+  triggerValue  String?         @map("trigger_value") @db.VarChar(200) // keyword ou cron expression
+  nodesJson     Json            @map("nodes_json")   // Array de FlowNode
+  edgesJson     Json            @map("edges_json")   // Array de FlowEdge
+  status        FlowStatus      @default(DRAFT)
+  version       Int             @default(1)
+  publishedAt   DateTime?       @map("published_at")
+  isActive      Boolean         @default(true) @map("is_active")
+  priority      Int             @default(0) // Para resolver conflito de triggers
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  instance   Instance?       @relation(fields: [instanceId], references: [id], onDelete: SetNull)
+  sessions   FlowSession[]
+
+  @@index([tenantId])
+  @@index([instanceId])
+  @@index([status, isActive])
+  @@map("flows")
+}
+
+// ============================================================
+// FLOW SESSIONS — Estado de sessão de um contato em um fluxo
+// ============================================================
+
+model FlowSession {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  flowId          String   @map("flow_id") @db.Uuid
+  conversationId  String   @map("conversation_id") @db.Uuid
+  currentNodeId   String   @map("current_node_id") @db.VarChar(100)
+  variables       Json     @default("{}") // { nome: "João", opcao: "1", ... }
+  waitingForInput Boolean  @default(false) @map("waiting_for_input")
+  startedAt       DateTime @default(now()) @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+  failedAt        DateTime? @map("failed_at")
+  errorMessage    String?  @map("error_message") @db.Text
+
+  flow         Flow         @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([flowId])
+  @@map("flow_sessions")
+}
+
+// ============================================================
+// CONTACTS — Contatos do WhatsApp
+// ============================================================
+
+model Contact {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  phone          String   @db.VarChar(20)   // Formato E.164: +5527999887766
+  name           String?  @db.VarChar(200)
+  email          String?  @db.VarChar(320)
+  avatarUrl      String?  @map("avatar_url") @db.VarChar(500)
+  customFields   Json     @default("{}") @map("custom_fields") // Campos personalizados
+  isBlocked      Boolean  @default(false) @map("is_blocked")
+  isOptedOut     Boolean  @default(false) @map("is_opted_out") // LGPD opt-out
+  optedOutAt     DateTime? @map("opted_out_at")
+  lastSeenAt     DateTime? @map("last_seen_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+  contactTags   ContactTag[]
+  campaignContacts CampaignContact[]
+
+  @@unique([tenantId, phone])
+  @@index([tenantId])
+  @@index([phone])
+  @@map("contacts")
+}
+
+// ============================================================
+// TAGS — Sistema de tags para segmentação
+// ============================================================
+
+model Tag {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  name      String   @db.VarChar(50)
+  color     String   @default("#3498DB") @db.VarChar(7) // Hex color
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contactTags      ContactTag[]
+  conversationTags ConversationTag[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("tags")
+}
+
+model ContactTag {
+  contactId String   @map("contact_id") @db.Uuid
+  tagId     String   @map("tag_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([contactId, tagId])
+  @@map("contact_tags")
+}
+
+model ConversationTag {
+  conversationId String   @map("conversation_id") @db.Uuid
+  tagId          String   @map("tag_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  tag          Tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, tagId])
+  @@map("conversation_tags")
+}
+
+// ============================================================
+// CONVERSATIONS — Threads de conversa
+// ============================================================
+
+model Conversation {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String             @map("tenant_id") @db.Uuid
+  instanceId       String             @map("instance_id") @db.Uuid
+  contactId        String             @map("contact_id") @db.Uuid
+  assignedTo       String?            @map("assigned_to") @db.Uuid
+  status           ConversationStatus @default(OPEN)
+  botActive        Boolean            @default(true) @map("bot_active")
+  unreadCount      Int                @default(0) @map("unread_count")
+  lastMessageAt    DateTime?          @map("last_message_at")
+  lastMessagePreview String?          @map("last_message_preview") @db.VarChar(200)
+  resolvedAt       DateTime?          @map("resolved_at")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  tenant       Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  instance     Instance          @relation(fields: [instanceId], references: [id])
+  contact      Contact           @relation(fields: [contactId], references: [id])
+  assignedUser User?             @relation("AssignedAgent", fields: [assignedTo], references: [id])
+  messages     Message[]
+  flowSessions FlowSession[]
+  notes        ConversationNote[]
+  conversationTags ConversationTag[]
+
+  @@index([tenantId])
+  @@index([instanceId])
+  @@index([contactId])
+  @@index([status])
+  @@index([assignedTo])
+  @@index([lastMessageAt])
+  @@map("conversations")
+}
+
+// ============================================================
+// MESSAGES — Mensagens trocadas
+// ============================================================
+
+model Message {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId  String           @map("conversation_id") @db.Uuid
+  sentByAgentId   String?          @map("sent_by_agent_id") @db.Uuid
+  externalId      String?          @map("external_id") @db.VarChar(200) // ID da mensagem na Evolution API
+  direction       MessageDirection
+  type            MessageType      @default(TEXT)
+  content         String?          @db.Text
+  mediaUrl        String?          @map("media_url") @db.VarChar(500)
+  mediaMimeType   String?          @map("media_mime_type") @db.VarChar(100)
+  mediaCaption    String?          @map("media_caption") @db.VarChar(500)
+  status          MessageStatus    @default(PENDING)
+  isInternal      Boolean          @default(false) @map("is_internal") // Nota interna
+  metadata        Json             @default("{}") // { quoted_message_id, reaction, etc. }
+  timestamp       DateTime         @default(now())
+  deliveredAt     DateTime?        @map("delivered_at")
+  readAt          DateTime?        @map("read_at")
+  failedAt        DateTime?        @map("failed_at")
+  failedReason    String?          @map("failed_reason") @db.VarChar(500)
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sentByAgent  User?        @relation("SentByAgent", fields: [sentByAgentId], references: [id])
+
+  @@index([conversationId])
+  @@index([externalId])
+  @@index([timestamp])
+  @@map("messages")
+}
+
+// ============================================================
+// CONVERSATION NOTES — Notas internas por conversa
+// ============================================================
+
+model ConversationNote {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId String   @map("conversation_id") @db.Uuid
+  authorId       String   @map("author_id") @db.Uuid
+  content        String   @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("conversation_notes")
+}
+
+// ============================================================
+// CAMPAIGNS — Campanhas de disparo em massa
+// ============================================================
+
+model Campaign {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String         @map("tenant_id") @db.Uuid
+  instanceId     String         @map("instance_id") @db.Uuid
+  name           String         @db.VarChar(200)
+  description    String?        @db.VarChar(500)
+  status         CampaignStatus @default(DRAFT)
+  messageType    MessageType    @default(TEXT) @map("message_type")
+  messageContent String?        @map("message_content") @db.Text
+  mediaUrl       String?        @map("media_url") @db.VarChar(500)
+  mediaCaption   String?        @map("media_caption") @db.VarChar(500)
+  scheduledAt    DateTime?      @map("scheduled_at")
+  startedAt      DateTime?      @map("started_at")
+  completedAt    DateTime?      @map("completed_at")
+  delayMinMs     Int            @default(3000) @map("delay_min_ms")  // Anti-ban delay mínimo
+  delayMaxMs     Int            @default(8000) @map("delay_max_ms")  // Anti-ban delay máximo
+  totalContacts  Int            @default(0) @map("total_contacts")
+  sentCount      Int            @default(0) @map("sent_count")
+  deliveredCount Int            @default(0) @map("delivered_count")
+  readCount      Int            @default(0) @map("read_count")
+  failedCount    Int            @default(0) @map("failed_count")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  instance  Instance          @relation(fields: [instanceId], references: [id])
+  contacts  CampaignContact[]
+
+  @@index([tenantId])
+  @@index([instanceId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@map("campaigns")
+}
+
+model CampaignContact {
+  id          String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId  String                @map("campaign_id") @db.Uuid
+  contactId   String                @map("contact_id") @db.Uuid
+  phone       String                @db.VarChar(20) // Snapshot do telefone no momento do envio
+  variables   Json                  @default("{}") // Variáveis personalizadas para este contato
+  status      CampaignContactStatus @default(PENDING)
+  sentAt      DateTime?             @map("sent_at")
+  deliveredAt DateTime?             @map("delivered_at")
+  readAt      DateTime?             @map("read_at")
+  failedAt    DateTime?             @map("failed_at")
+  errorMessage String?              @map("error_message") @db.VarChar(500)
+  externalId  String?               @map("external_id") @db.VarChar(200)
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact  Contact  @relation(fields: [contactId], references: [id])
+
+  @@unique([campaignId, contactId])
+  @@index([campaignId])
+  @@index([status])
+  @@map("campaign_contacts")
+}
+
+// ============================================================
+// AI CONFIGS — Configurações de IA por tenant
+// ============================================================
+
+model AiConfig {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String     @map("tenant_id") @db.Uuid
+  provider      AiProvider
+  model         String     @db.VarChar(100) // ex: "llama-3.1-70b-versatile"
+  apiKeyEnc     String?    @map("api_key_enc") @db.Text // AES-256 encrypted
+  baseUrl       String?    @map("base_url") @db.VarChar(300) // Para Ollama
+  systemPrompt  String?    @map("system_prompt") @db.Text
+  maxTokens     Int        @default(500) @map("max_tokens")
+  temperature   Float      @default(0.7)
+  historyWindow Int        @default(10) @map("history_window") // Qtd de msgs de contexto
+  isDefault     Boolean    @default(false) @map("is_default")
+  isActive      Boolean    @default(true) @map("is_active")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("ai_configs")
+}
+
+// ============================================================
+// WEBHOOKS — Webhooks de saída configurados pelo usuário
+// ============================================================
+
+model Webhook {
+  id        String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String         @map("tenant_id") @db.Uuid
+  name      String         @db.VarChar(100)
+  url       String         @db.VarChar(500)
+  secret    String?        @db.VarChar(200) // HMAC secret
+  events    WebhookEvent[]
+  headers   Json           @default("{}") // Headers customizados
+  isActive  Boolean        @default(true) @map("is_active")
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  deliveries WebhookDelivery[]
+
+  @@index([tenantId])
+  @@map("webhooks")
+}
+
+model WebhookDelivery {
+  id           String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  webhookId    String                @map("webhook_id") @db.Uuid
+  event        WebhookEvent
+  payload      Json
+  status       WebhookDeliveryStatus @default(PENDING)
+  httpStatus   Int?                  @map("http_status")
+  responseBody String?               @map("response_body") @db.Text
+  attemptCount Int                   @default(0) @map("attempt_count")
+  nextRetryAt  DateTime?             @map("next_retry_at")
+  deliveredAt  DateTime?             @map("delivered_at")
+  createdAt    DateTime              @default(now()) @map("created_at")
+
+  webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId])
+  @@index([status])
+  @@index([nextRetryAt])
+  @@map("webhook_deliveries")
+}
+
+// ============================================================
+// AUDIT LOGS — Trilha de auditoria completa
+// ============================================================
+
+model AuditLog {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String      @map("tenant_id") @db.Uuid
+  userId     String?     @map("user_id") @db.Uuid
+  action     AuditAction
+  entity     String      @db.VarChar(50)  // ex: "flow", "instance", "campaign"
+  entityId   String?     @map("entity_id") @db.Uuid
+  oldValues  Json?       @map("old_values")
+  newValues  Json?       @map("new_values")
+  ipAddress  String?     @map("ip_address") @db.Inet
+  userAgent  String?     @map("user_agent") @db.VarChar(500)
+  createdAt  DateTime    @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([entity, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

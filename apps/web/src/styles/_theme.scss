@@ -1,0 +1,23 @@
+@use "@angular/material" as mat;
+@use "variables" as v;
+
+// Tema Angular Material customizado para WhatFlow
+$whatflow-primary: mat.define-palette(mat.$blue-palette, 700, 400, 900);
+$whatflow-accent: mat.define-palette(mat.$green-palette, A400);
+$whatflow-warn: mat.define-palette(mat.$red-palette);
+
+$whatflow-theme: mat.define-light-theme(
+  (
+    color: (
+      primary: $whatflow-primary,
+      accent: $whatflow-accent,
+      warn: $whatflow-warn,
+    ),
+    typography: mat.define-typography-config(
+        $font-family: v.$font-family,
+      ),
+    density: -1,
+  )
+);
+
+@include mat.all-component-themes($whatflow-theme);
