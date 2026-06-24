@@ -9,7 +9,7 @@
 
 | # | Item | Detalhe | Onde |
 |---|------|---------|------|
-| P-01 | **Validar `docker compose up` (T-002)** | Subir todos os serviços (api:3000, web:4200, redis, bull-board) com o Docker ativo e confirmar que respondem. Daemon do Docker estava parado durante o Sprint 1. | `docker-compose.yml` |
+| P-01 | **Validar `docker compose up` (T-002)** | **Passo do usuário:** abrir o Docker Desktop manualmente e concluir o first-run (aceitar termos / login / habilitar WSL) até `docker info` responder. Tentativa headless falhou — o Docker Desktop sobe e fecha, e o engine WSL2 `docker-desktop` não inicializa (pipe `dockerDesktopLinuxEngine` ausente). Depois rodar `docker compose up -d --build` e confirmar api:3000/health e web:4200. | `docker-compose.yml` |
 
 ## 🔐 Segurança (ação do usuário)
 
