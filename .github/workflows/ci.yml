@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  api:
+    name: API — Lint + Test + Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      # Monorepo npm workspaces: instala na raiz (lockfile único)
+      - run: npm ci
+      - run: npm run prisma:generate
+      - run: npm run lint --workspace=apps/api
+      - run: npm run test --workspace=apps/api
+      - run: npm run build --workspace=apps/api
+
+  web:
+    name: Web — Build (Angular)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build:prod --workspace=apps/web
+      # TODO(T-050): habilitar lint/test do Angular quando houver eslint+karma config
+      # - run: npm run lint --workspace=apps/web
+      # - run: npm run test --workspace=apps/web
+
+  deploy-staging:
+    name: Deploy Staging
+    needs: [api, web]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to staging
+        run: echo "🚀 Deploy automático para staging aqui"
+        # Adicionar aqui: ssh, docker push, fly.io, render, etc.

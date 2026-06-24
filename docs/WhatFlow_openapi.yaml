@@ -1,0 +1,1321 @@
+openapi: 3.1.0
+info:
+  title: WhatFlow API
+  description: |
+    API REST da plataforma WhatFlow — automação WhatsApp com IA.
+    
+    ## Autenticação
+    Todas as rotas (exceto `/auth/*`) exigem header:
+    ```
+    Authorization: Bearer <jwt_token>
+    ```
+    O JWT é obtido via `POST /auth/login` e tem validade de **1 hora**.
+    Use `POST /auth/refresh` para renovar sem novo login.
+    
+    ## Multi-tenancy
+    O `tenant_id` é extraído automaticamente do JWT. Nunca envie o tenant_id no body — ele é inferido do token.
+    
+    ## Rate Limiting
+    - Endpoints gerais: 100 req/min por IP
+    - `/messages` envio: 20 req/min por instância (anti-ban)
+    - `/campaigns/:id/start`: 1 req/min por campanha
+    
+    ## Paginação
+    Listagens usam cursor-based pagination:
+    ```
+    GET /conversations?limit=20&cursor=<last_id>
+    ```
+  version: 1.0.0
+  contact:
+    name: WhatFlow Dev Team
+    email: dev@whatflow.com.br
+
+servers:
+  - url: https://api.whatflow.com.br/v1
+    description: Produção
+  - url: http://localhost:3000/v1
+    description: Desenvolvimento local
+
+tags:
+  - name: Auth
+    description: Autenticação e gerenciamento de sessão
+  - name: Instances
+    description: Conexões WhatsApp via Evolution API
+  - name: Flows
+    description: Fluxos de chatbot (construtor visual)
+  - name: Contacts
+    description: Contatos e segmentação
+  - name: Conversations
+    description: Caixa de entrada unificada
+  - name: Messages
+    description: Envio e leitura de mensagens
+  - name: Campaigns
+    description: Campanhas de disparo em massa
+  - name: AI
+    description: Configuração de inteligência artificial
+  - name: Webhooks
+    description: Webhooks de saída configurados pelo usuário
+  - name: Analytics
+    description: Métricas e relatórios
+  - name: WebhookReceiver
+    description: Receiver de eventos da Evolution API (uso interno)
+
+# ============================================================
+# COMPONENTS REUTILIZÁVEIS
+# ============================================================
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # --- Paginação ---
+    PaginatedMeta:
+      type: object
+      properties:
+        total:    { type: integer }
+        limit:    { type: integer }
+        cursor:   { type: string, nullable: true }
+        hasMore:  { type: boolean }
+
+    # --- Erro padrão ---
+    ApiError:
+      type: object
+      required: [error, message]
+      properties:
+        error:   { type: string, example: "VALIDATION_ERROR" }
+        message: { type: string, example: "O campo 'name' é obrigatório" }
+        details: { type: object, nullable: true }
+
+    # --- Tenant ---
+    Tenant:
+      type: object
+      properties:
+        id:        { type: string, format: uuid }
+        name:      { type: string }
+        slug:      { type: string }
+        plan:      { type: string, enum: [FREE, PRO, ENTERPRISE] }
+        isActive:  { type: boolean }
+        settings:  { type: object }
+        createdAt: { type: string, format: date-time }
+
+    # --- User ---
+    User:
+      type: object
+      properties:
+        id:        { type: string, format: uuid }
+        email:     { type: string, format: email }
+        fullName:  { type: string }
+        avatarUrl: { type: string, nullable: true }
+        role:      { type: string, enum: [OWNER, ADMIN, AGENT, VIEWER] }
+        isActive:  { type: boolean }
+        lastLoginAt: { type: string, format: date-time, nullable: true }
+
+    # --- Instance ---
+    Instance:
+      type: object
+      properties:
+        id:           { type: string, format: uuid }
+        name:         { type: string }
+        phone:        { type: string, nullable: true }
+        status:       { type: string, enum: [PENDING, QR_PENDING, CONNECTED, DISCONNECTED, BANNED] }
+        isActive:     { type: boolean }
+        connectedAt:  { type: string, format: date-time, nullable: true }
+        settings:     { type: object }
+        createdAt:    { type: string, format: date-time }
+
+    InstanceWithQR:
+      allOf:
+        - $ref: '#/components/schemas/Instance'
+        - type: object
+          properties:
+            qrCode:      { type: string, description: "Base64 do QR Code PNG", nullable: true }
+            qrExpiresAt: { type: string, format: date-time, nullable: true }
+
+    # --- Flow ---
+    FlowNode:
+      type: object
+      required: [id, type, position]
+      properties:
+        id:       { type: string }
+        type:     { type: string, enum: [TEXT, IMAGE, AUDIO, VIDEO, DOCUMENT, MENU, CONDITION, DELAY, VARIABLE, WEBHOOK_CALL, AI, ASSIGN_AGENT, END] }
+        position: { type: object, properties: { x: { type: number }, y: { type: number } } }
+        data:     { type: object, description: "Propriedades específicas do tipo de nó" }
+
+    FlowEdge:
+      type: object
+      required: [id, source, target]
+      properties:
+        id:           { type: string }
+        source:       { type: string }
+        target:       { type: string }
+        sourceHandle: { type: string, nullable: true }
+        label:        { type: string, nullable: true }
+
+    Flow:
+      type: object
+      properties:
+        id:           { type: string, format: uuid }
+        instanceId:   { type: string, format: uuid, nullable: true }
+        name:         { type: string }
+        description:  { type: string, nullable: true }
+        triggerType:  { type: string, enum: [KEYWORD, ANY_MESSAGE, FIRST_MESSAGE, SCHEDULE] }
+        triggerValue: { type: string, nullable: true }
+        status:       { type: string, enum: [DRAFT, PUBLISHED, ARCHIVED] }
+        version:      { type: integer }
+        isActive:     { type: boolean }
+        publishedAt:  { type: string, format: date-time, nullable: true }
+        createdAt:    { type: string, format: date-time }
+
+    FlowDetail:
+      allOf:
+        - $ref: '#/components/schemas/Flow'
+        - type: object
+          properties:
+            nodesJson: { type: array, items: { $ref: '#/components/schemas/FlowNode' } }
+            edgesJson: { type: array, items: { $ref: '#/components/schemas/FlowEdge' } }
+
+    # --- Contact ---
+    Contact:
+      type: object
+      properties:
+        id:           { type: string, format: uuid }
+        phone:        { type: string, example: "+5527999887766" }
+        name:         { type: string, nullable: true }
+        email:        { type: string, nullable: true }
+        avatarUrl:    { type: string, nullable: true }
+        customFields: { type: object }
+        isBlocked:    { type: boolean }
+        isOptedOut:   { type: boolean }
+        tags:         { type: array, items: { $ref: '#/components/schemas/Tag' } }
+        lastSeenAt:   { type: string, format: date-time, nullable: true }
+        createdAt:    { type: string, format: date-time }
+
+    # --- Tag ---
+    Tag:
+      type: object
+      properties:
+        id:    { type: string, format: uuid }
+        name:  { type: string }
+        color: { type: string, example: "#3498DB" }
+
+    # --- Conversation ---
+    Conversation:
+      type: object
+      properties:
+        id:                 { type: string, format: uuid }
+        instanceId:         { type: string, format: uuid }
+        contactId:          { type: string, format: uuid }
+        assignedTo:         { type: string, format: uuid, nullable: true }
+        status:             { type: string, enum: [OPEN, PENDING, RESOLVED, SPAM] }
+        botActive:          { type: boolean }
+        unreadCount:        { type: integer }
+        lastMessageAt:      { type: string, format: date-time, nullable: true }
+        lastMessagePreview: { type: string, nullable: true }
+        contact:            { $ref: '#/components/schemas/Contact' }
+        assignedUser:       { $ref: '#/components/schemas/User', nullable: true }
+        tags:               { type: array, items: { $ref: '#/components/schemas/Tag' } }
+        createdAt:          { type: string, format: date-time }
+
+    # --- Message ---
+    Message:
+      type: object
+      properties:
+        id:            { type: string, format: uuid }
+        direction:     { type: string, enum: [INBOUND, OUTBOUND] }
+        type:          { type: string, enum: [TEXT, IMAGE, AUDIO, VIDEO, DOCUMENT, STICKER, LOCATION, CONTACT, TEMPLATE] }
+        content:       { type: string, nullable: true }
+        mediaUrl:      { type: string, nullable: true }
+        mediaCaption:  { type: string, nullable: true }
+        status:        { type: string, enum: [PENDING, SENT, DELIVERED, READ, FAILED] }
+        isInternal:    { type: boolean }
+        timestamp:     { type: string, format: date-time }
+        sentByAgent:   { $ref: '#/components/schemas/User', nullable: true }
+
+    # --- Campaign ---
+    Campaign:
+      type: object
+      properties:
+        id:             { type: string, format: uuid }
+        instanceId:     { type: string, format: uuid }
+        name:           { type: string }
+        description:    { type: string, nullable: true }
+        status:         { type: string, enum: [DRAFT, SCHEDULED, RUNNING, PAUSED, COMPLETED, CANCELLED, FAILED] }
+        messageType:    { type: string }
+        messageContent: { type: string, nullable: true }
+        scheduledAt:    { type: string, format: date-time, nullable: true }
+        totalContacts:  { type: integer }
+        sentCount:      { type: integer }
+        deliveredCount: { type: integer }
+        readCount:      { type: integer }
+        failedCount:    { type: integer }
+        delayMinMs:     { type: integer }
+        delayMaxMs:     { type: integer }
+        createdAt:      { type: string, format: date-time }
+
+    # --- AiConfig ---
+    AiConfig:
+      type: object
+      properties:
+        id:            { type: string, format: uuid }
+        provider:      { type: string, enum: [GROQ, OLLAMA, OPENAI_COMPATIBLE] }
+        model:         { type: string, example: "llama-3.1-70b-versatile" }
+        baseUrl:       { type: string, nullable: true }
+        systemPrompt:  { type: string, nullable: true }
+        maxTokens:     { type: integer }
+        temperature:   { type: number }
+        historyWindow: { type: integer }
+        isDefault:     { type: boolean }
+        isActive:      { type: boolean }
+
+    # --- Webhook ---
+    Webhook:
+      type: object
+      properties:
+        id:       { type: string, format: uuid }
+        name:     { type: string }
+        url:      { type: string }
+        events:   { type: array, items: { type: string } }
+        headers:  { type: object }
+        isActive: { type: boolean }
+
+security:
+  - BearerAuth: []
+
+# ============================================================
+# PATHS
+# ============================================================
+paths:
+
+  # ========== AUTH ==========
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Registrar nova conta (tenant + owner)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, fullName, companyName]
+              properties:
+                email:       { type: string, format: email }
+                password:    { type: string, minLength: 8 }
+                fullName:    { type: string }
+                companyName: { type: string }
+      responses:
+        '201':
+          description: Conta criada com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:         { $ref: '#/components/schemas/User' }
+                  tenant:       { $ref: '#/components/schemas/Tenant' }
+                  accessToken:  { type: string }
+                  refreshToken: { type: string }
+        '409': { description: "E-mail já cadastrado" }
+        '422': { description: "Validação falhou", content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login com e-mail e senha
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:    { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200':
+          description: Login bem-sucedido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:         { $ref: '#/components/schemas/User' }
+                  tenant:       { $ref: '#/components/schemas/Tenant' }
+                  accessToken:  { type: string }
+                  refreshToken: { type: string }
+        '401': { description: "Credenciais inválidas" }
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Renovar access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:  { type: string }
+                  refreshToken: { type: string }
+        '401': { description: "Refresh token inválido ou expirado" }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout (invalida refresh token)
+      responses:
+        '204': { description: "Logout realizado" }
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Retorna dados do usuário autenticado
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:   { $ref: '#/components/schemas/User' }
+                  tenant: { $ref: '#/components/schemas/Tenant' }
+
+  # ========== INSTANCES ==========
+
+  /instances:
+    get:
+      tags: [Instances]
+      summary: Listar instâncias do tenant
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [PENDING, QR_PENDING, CONNECTED, DISCONNECTED, BANNED] }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Instance' } }
+    post:
+      tags: [Instances]
+      summary: Criar nova instância
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:     { type: string }
+                settings: { type: object }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Instance' }
+
+  /instances/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Instances]
+      summary: Buscar instância por ID
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InstanceWithQR' }
+        '404': { description: "Instância não encontrada" }
+    patch:
+      tags: [Instances]
+      summary: Atualizar instância (nome, settings)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:     { type: string }
+                settings: { type: object }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Instance' }
+    delete:
+      tags: [Instances]
+      summary: Excluir instância
+      responses:
+        '204': { description: "Excluída" }
+
+  /instances/{id}/connect:
+    post:
+      tags: [Instances]
+      summary: Iniciar conexão (gera QR Code)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  qrCode:      { type: string, description: "Base64 PNG" }
+                  qrExpiresAt: { type: string, format: date-time }
+
+  /instances/{id}/disconnect:
+    post:
+      tags: [Instances]
+      summary: Desconectar instância
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: "DISCONNECTED" }
+
+  # ========== FLOWS ==========
+
+  /flows:
+    get:
+      tags: [Flows]
+      summary: Listar fluxos
+      parameters:
+        - in: query
+          name: instanceId
+          schema: { type: string, format: uuid }
+        - in: query
+          name: status
+          schema: { type: string, enum: [DRAFT, PUBLISHED, ARCHIVED] }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
+        - in: query
+          name: cursor
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Flow' } }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      tags: [Flows]
+      summary: Criar novo fluxo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, triggerType]
+              properties:
+                name:         { type: string }
+                description:  { type: string }
+                instanceId:   { type: string, format: uuid }
+                triggerType:  { type: string, enum: [KEYWORD, ANY_MESSAGE, FIRST_MESSAGE, SCHEDULE] }
+                triggerValue: { type: string }
+                nodesJson:    { type: array, items: { $ref: '#/components/schemas/FlowNode' } }
+                edgesJson:    { type: array, items: { $ref: '#/components/schemas/FlowEdge' } }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FlowDetail' }
+
+  /flows/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Flows]
+      summary: Buscar fluxo com nodes e edges
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FlowDetail' }
+    put:
+      tags: [Flows]
+      summary: Salvar fluxo (sobrescreve nodes e edges — salva como rascunho)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:         { type: string }
+                description:  { type: string }
+                triggerType:  { type: string }
+                triggerValue: { type: string }
+                nodesJson:    { type: array }
+                edgesJson:    { type: array }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FlowDetail' }
+    delete:
+      tags: [Flows]
+      summary: Excluir fluxo
+      responses:
+        '204': { description: "Excluído" }
+
+  /flows/{id}/publish:
+    post:
+      tags: [Flows]
+      summary: Publicar versão atual do fluxo (ativa para o bot)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:          { type: string, format: uuid }
+                  status:      { type: string, example: "PUBLISHED" }
+                  version:     { type: integer }
+                  publishedAt: { type: string, format: date-time }
+
+  /flows/{id}/duplicate:
+    post:
+      tags: [Flows]
+      summary: Duplicar fluxo (cria cópia em DRAFT)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FlowDetail' }
+
+  # ========== CONTACTS ==========
+
+  /contacts:
+    get:
+      tags: [Contacts]
+      summary: Listar contatos
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+          description: "Busca por nome ou telefone"
+        - in: query
+          name: tagId
+          schema: { type: string, format: uuid }
+        - in: query
+          name: isBlocked
+          schema: { type: boolean }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50 }
+        - in: query
+          name: cursor
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Contact' } }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      tags: [Contacts]
+      summary: Criar contato
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone:        { type: string }
+                name:         { type: string }
+                email:        { type: string }
+                customFields: { type: object }
+                tagIds:       { type: array, items: { type: string, format: uuid } }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Contact' }
+
+  /contacts/import:
+    post:
+      tags: [Contacts]
+      summary: Importar contatos via CSV
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: "CSV com colunas: phone, name, email (opcionais: custom_*)"
+                tagIds:
+                  type: string
+                  description: "JSON array de UUIDs de tags para aplicar"
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  imported:  { type: integer }
+                  skipped:   { type: integer }
+                  errors:    { type: array, items: { type: object } }
+
+  /contacts/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Contacts]
+      summary: Buscar contato por ID
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Contact' }
+    patch:
+      tags: [Contacts]
+      summary: Atualizar contato
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:         { type: string }
+                email:        { type: string }
+                customFields: { type: object }
+                isBlocked:    { type: boolean }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Contact' }
+    delete:
+      tags: [Contacts]
+      summary: Excluir contato (LGPD — apaga dados pessoais)
+      responses:
+        '204': { description: "Excluído" }
+
+  # ========== CONVERSATIONS ==========
+
+  /conversations:
+    get:
+      tags: [Conversations]
+      summary: Listar conversas (inbox)
+      parameters:
+        - in: query
+          name: instanceId
+          schema: { type: string, format: uuid }
+        - in: query
+          name: status
+          schema: { type: string, enum: [OPEN, PENDING, RESOLVED, SPAM] }
+        - in: query
+          name: assignedTo
+          schema: { type: string, format: uuid }
+        - in: query
+          name: tagId
+          schema: { type: string, format: uuid }
+        - in: query
+          name: q
+          schema: { type: string }
+          description: "Busca por nome/telefone do contato"
+        - in: query
+          name: limit
+          schema: { type: integer, default: 30 }
+        - in: query
+          name: cursor
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Conversation' } }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+
+  /conversations/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Conversations]
+      summary: Buscar conversa com detalhes
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Conversation' }
+    patch:
+      tags: [Conversations]
+      summary: Atualizar status, atribuição ou bot da conversa
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:     { type: string, enum: [OPEN, PENDING, RESOLVED, SPAM] }
+                assignedTo: { type: string, format: uuid, nullable: true }
+                botActive:  { type: boolean }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Conversation' }
+
+  /conversations/{id}/messages:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Messages]
+      summary: Listar mensagens da conversa (cursor paginado)
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50 }
+        - in: query
+          name: cursor
+          schema: { type: string }
+          description: "ID da última mensagem recebida (para carregar mais antigas)"
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Message' } }
+                  meta: { $ref: '#/components/schemas/PaginatedMeta' }
+    post:
+      tags: [Messages]
+      summary: Enviar mensagem como agente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type]
+              properties:
+                type:       { type: string, enum: [TEXT, IMAGE, AUDIO, VIDEO, DOCUMENT] }
+                content:    { type: string, description: "Obrigatório para type=TEXT" }
+                mediaUrl:   { type: string, description: "Obrigatório para tipos de mídia" }
+                caption:    { type: string }
+                isInternal: { type: boolean, default: false }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+
+  /conversations/{id}/notes:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Conversations]
+      summary: Listar notas internas da conversa
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { type: object, properties: { id: { type: string }, content: { type: string }, author: { $ref: '#/components/schemas/User' }, createdAt: { type: string, format: date-time } } } }
+    post:
+      tags: [Conversations]
+      summary: Adicionar nota interna
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string }
+      responses:
+        '201': { description: "Nota criada" }
+
+  # ========== CAMPAIGNS ==========
+
+  /campaigns:
+    get:
+      tags: [Campaigns]
+      summary: Listar campanhas
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: instanceId
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Campaign' } }
+    post:
+      tags: [Campaigns]
+      summary: Criar campanha
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, instanceId, messageType]
+              properties:
+                name:           { type: string }
+                instanceId:     { type: string, format: uuid }
+                messageType:    { type: string, enum: [TEXT, IMAGE, VIDEO, DOCUMENT] }
+                messageContent: { type: string }
+                mediaUrl:       { type: string }
+                scheduledAt:    { type: string, format: date-time }
+                delayMinMs:     { type: integer, default: 3000 }
+                delayMaxMs:     { type: integer, default: 8000 }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Campaign' }
+
+  /campaigns/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Campaigns]
+      summary: Buscar campanha
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Campaign' }
+    patch:
+      tags: [Campaigns]
+      summary: Atualizar campanha (apenas em DRAFT)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:           { type: string }
+                messageContent: { type: string }
+                scheduledAt:    { type: string, format: date-time }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Campaign' }
+    delete:
+      tags: [Campaigns]
+      summary: Excluir campanha (apenas DRAFT ou CANCELLED)
+      responses:
+        '204': { description: "Excluída" }
+
+  /campaigns/{id}/contacts:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Campaigns]
+      summary: Adicionar contatos à campanha (por IDs ou CSV)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                contactIds: { type: array, items: { type: string, format: uuid } }
+                tagId:      { type: string, format: uuid, description: "Adicionar todos os contatos de uma tag" }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  added:  { type: integer }
+                  total:  { type: integer }
+
+  /campaigns/{id}/start:
+    post:
+      tags: [Campaigns]
+      summary: Iniciar/disparar campanha
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: "RUNNING" }
+                  jobId:  { type: string }
+
+  /campaigns/{id}/pause:
+    post:
+      tags: [Campaigns]
+      summary: Pausar campanha em andamento
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: "Pausada" }
+
+  /campaigns/{id}/cancel:
+    post:
+      tags: [Campaigns]
+      summary: Cancelar campanha
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: "Cancelada" }
+
+  # ========== AI ==========
+
+  /ai/configs:
+    get:
+      tags: [AI]
+      summary: Listar configurações de IA do tenant
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/AiConfig' } }
+    post:
+      tags: [AI]
+      summary: Criar configuração de IA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider, model]
+              properties:
+                provider:      { type: string, enum: [GROQ, OLLAMA, OPENAI_COMPATIBLE] }
+                model:         { type: string }
+                apiKey:        { type: string, description: "Obrigatório para GROQ. Será criptografado." }
+                baseUrl:       { type: string, description: "Obrigatório para OLLAMA" }
+                systemPrompt:  { type: string }
+                maxTokens:     { type: integer, default: 500 }
+                temperature:   { type: number, default: 0.7 }
+                historyWindow: { type: integer, default: 10 }
+                isDefault:     { type: boolean }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AiConfig' }
+
+  /ai/configs/{id}/test:
+    post:
+      tags: [AI]
+      summary: Testar configuração de IA com prompt de exemplo
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                prompt: { type: string, default: "Olá, como você pode me ajudar?" }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response:  { type: string }
+                  latencyMs: { type: integer }
+                  tokens:    { type: integer }
+
+  # ========== WEBHOOKS ==========
+
+  /webhooks:
+    get:
+      tags: [Webhooks]
+      summary: Listar webhooks de saída
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Webhook' } }
+    post:
+      tags: [Webhooks]
+      summary: Criar webhook de saída
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, url, events]
+              properties:
+                name:     { type: string }
+                url:      { type: string, format: uri }
+                secret:   { type: string }
+                events:   { type: array, items: { type: string, enum: [MESSAGE_RECEIVED, MESSAGE_SENT, FLOW_STARTED, FLOW_COMPLETED, LEAD_CAPTURED, AGENT_ASSIGNED, CONVERSATION_RESOLVED, CAMPAIGN_COMPLETED] } }
+                headers:  { type: object }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Webhook' }
+
+  /webhooks/{id}/test:
+    post:
+      tags: [Webhooks]
+      summary: Disparar payload de teste para o webhook
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  httpStatus:   { type: integer }
+                  responseBody: { type: string }
+                  latencyMs:    { type: integer }
+
+  /webhooks/{id}/deliveries:
+    get:
+      tags: [Webhooks]
+      summary: Histórico de entregas do webhook
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+        - in: query
+          name: status
+          schema: { type: string, enum: [PENDING, SUCCESS, FAILED, RETRYING] }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 30 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { type: object } }
+
+  # ========== ANALYTICS ==========
+
+  /analytics/overview:
+    get:
+      tags: [Analytics]
+      summary: Visão geral — KPIs do dashboard principal
+      parameters:
+        - in: query
+          name: instanceId
+          schema: { type: string, format: uuid }
+        - in: query
+          name: period
+          schema: { type: string, enum: [today, 7d, 30d, 90d], default: 7d }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalMessagesInbound:   { type: integer }
+                  totalMessagesOutbound:  { type: integer }
+                  totalConversationsOpen: { type: integer }
+                  avgResponseTimeMinutes: { type: number }
+                  avgResolutionTimeMinutes: { type: number }
+                  botHandledRate:         { type: number, description: "% conversas resolvidas pelo bot" }
+
+  /analytics/messages:
+    get:
+      tags: [Analytics]
+      summary: Volume de mensagens por período (série temporal)
+      parameters:
+        - in: query
+          name: instanceId
+          schema: { type: string, format: uuid }
+        - in: query
+          name: granularity
+          schema: { type: string, enum: [hour, day, week], default: day }
+        - in: query
+          name: from
+          schema: { type: string, format: date }
+        - in: query
+          name: to
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        bucket:   { type: string }
+                        inbound:  { type: integer }
+                        outbound: { type: integer }
+                        failed:   { type: integer }
+
+  /analytics/campaigns/{id}:
+    get:
+      tags: [Analytics]
+      summary: Performance detalhada de uma campanha
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deliveryRate: { type: number }
+                  readRate:     { type: number }
+                  failedRate:   { type: number }
+                  timeline:     { type: array, items: { type: object } }
+
+  # ========== WEBHOOK RECEIVER (Evolution API) ==========
+
+  /webhooks/evolution/{instanceKey}:
+    post:
+      tags: [WebhookReceiver]
+      summary: Recebe eventos da Evolution API (não requer JWT — valida HMAC)
+      security: []
+      parameters:
+        - in: path
+          name: instanceKey
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:    { type: string, example: "messages.upsert" }
+                instance: { type: string }
+                data:     { type: object }
+      responses:
+        '200': { description: "Evento processado" }
+        '401': { description: "Assinatura HMAC inválida" }

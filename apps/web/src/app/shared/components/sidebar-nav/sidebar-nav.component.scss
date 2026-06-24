@@ -1,0 +1,44 @@
+@use "styles/variables" as v;
+
+.sidebar {
+  width: v.$sidebar-width;
+  background: v.$brand-dark;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.sidebar-logo {
+  font-size: 22px;
+  margin-bottom: 8px;
+  cursor: default;
+}
+
+.nav-item {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 20px;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background 0.15s,
+    color 0.15s;
+
+  &:hover,
+  &.active {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+  }
+}
+
+.nav-spacer {
+  flex: 1;
+}

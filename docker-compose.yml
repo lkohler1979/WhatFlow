@@ -1,0 +1,70 @@
+version: '3.9'
+
+services:
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.dev
+    container_name: whatflow-api
+    ports:
+      - "3000:3000"
+    env_file: .env
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/api/src:/app/src
+      - ./apps/api/prisma:/app/prisma
+      - /app/node_modules
+    command: npm run dev
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile.dev
+    container_name: whatflow-web
+    ports:
+      - "4200:4200"
+    env_file: .env
+    volumes:
+      - ./apps/web/src:/app/src
+      - /app/node_modules
+    command: npm run start -- --host 0.0.0.0 --poll 500
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: whatflow-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  bull-board:
+    image: ghcr.io/taskforcesh/bullmq-pro-board:latest
+    container_name: whatflow-bull-board
+    ports:
+      - "3001:3000"
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+
+networks:
+  default:
+    name: whatflow-network

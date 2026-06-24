@@ -1,0 +1,9 @@
+{
+  "name": "whatflow-dev",
+  "version": "0.1.0",
+  "description": "Plugin de desenvolvimento da plataforma WhatFlow — automação WhatsApp com IA. Contém contexto completo do projeto, stack, decisões arquiteturais e o comando /executar_inicio para dar partida no Sprint 1.",
+  "author": {
+    "name": "Luiz Arlindo / EcoSoft"
+  },
+  "keywords": ["whatflow", "whatsapp", "evolution-api", "supabase", "angular", "nodejs"]
+}
