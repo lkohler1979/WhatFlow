@@ -1,38 +1,35 @@
-version: '3.9'
-
 services:
   api:
     build:
-      context: ./apps/api
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: apps/api/Dockerfile.dev
     container_name: whatflow-api
     ports:
       - "3000:3000"
     env_file: .env
     environment:
       - NODE_ENV=development
+      # Dentro da rede do compose o Redis é resolvido pelo nome do serviço
+      - REDIS_URL=redis://redis:6379
     depends_on:
       redis:
         condition: service_healthy
+    # Bind mounts apenas do código (hot-reload). NÃO montar node_modules:
+    # volume anônimo persistente sombreava o node_modules da imagem.
     volumes:
-      - ./apps/api/src:/app/src
-      - ./apps/api/prisma:/app/prisma
-      - /app/node_modules
-    command: npm run dev
+      - ./apps/api/src:/app/apps/api/src
+      - ./apps/api/prisma:/app/apps/api/prisma
     restart: unless-stopped
 
   web:
     build:
-      context: ./apps/web
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: apps/web/Dockerfile.dev
     container_name: whatflow-web
     ports:
       - "4200:4200"
-    env_file: .env
     volumes:
-      - ./apps/web/src:/app/src
-      - /app/node_modules
-    command: npm run start -- --host 0.0.0.0 --poll 500
+      - ./apps/web/src:/app/apps/web/src
     restart: unless-stopped
 
   redis:
@@ -51,7 +48,7 @@ services:
     restart: unless-stopped
 
   bull-board:
-    image: ghcr.io/taskforcesh/bullmq-pro-board:latest
+    image: deadly0/bull-board:latest
     container_name: whatflow-bull-board
     ports:
       - "3001:3000"

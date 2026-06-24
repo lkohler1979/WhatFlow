@@ -1,5 +1,13 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import WebSocketImpl from 'ws';
 import { config } from './config.js';
+
+// Node < 22 não expõe `WebSocket` global, exigido pelo supabase-js (realtime).
+// Fornecemos o polyfill via "ws" para rodar em containers Node 20.
+const globalWithWs = globalThis as { WebSocket?: unknown };
+if (typeof globalWithWs.WebSocket === 'undefined') {
+  globalWithWs.WebSocket = WebSocketImpl;
+}
 
 /**
  * Cliente admin (service role) — usado para operações privilegiadas:

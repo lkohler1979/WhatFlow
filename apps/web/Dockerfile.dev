@@ -1,0 +1,15 @@
+# Build a partir da RAIZ do repo (contexto = .): instala via workspaces
+# para o layout de node_modules bater com o alias rxjs do tsconfig do web.
+# NÃO copiamos o package-lock.json (gerado no Windows) para que o npm
+# resolva os binários nativos corretos da plataforma do container (Linux).
+FROM node:20-alpine
+WORKDIR /app
+COPY package.json ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/web/package.json apps/web/package.json
+RUN npm install
+COPY tsconfig.base.json ./tsconfig.base.json
+COPY apps/web/ ./apps/web/
+WORKDIR /app/apps/web
+EXPOSE 4200
+CMD ["npm", "run", "start", "--", "--host", "0.0.0.0", "--poll", "500"]

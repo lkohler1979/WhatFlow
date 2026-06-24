@@ -35,7 +35,7 @@
 | ID | Tarefa | Critérios de Aceite | Prio | Esforço | Deps | Status |
 |---|---|---|---|---|---|---|
 | T-001 | Inicializar repositório monorepo | `npm install` funciona. Lint e build (API) passam sem erros. Husky bloqueia commit com lint error. | Alta | M | — | ✅ |
-| T-002 | Docker Compose para ambiente dev | `docker compose up` inicia todos os serviços. API responde em :3000, Web em :4200. | Alta | M | T-001 | 🟡 (compose pronto: api/web/redis/bull-board; DB é Supabase hospedado, sem PG local. Validação de `docker compose up` pendente — daemon do Docker não estava ativo nesta máquina) |
+| T-002 | Docker Compose para ambiente dev | `docker compose up` inicia todos os serviços. API responde em :3000, Web em :4200. | Alta | M | T-001 | ✅ (validado: api `/health` 200 :3000, web 200 :4200, redis healthy :6379, bull-board 200 :3001. Dockerfiles com contexto raiz; API em node:20-slim p/ Prisma; web sem lockfile p/ binários nativos Linux; sem volumes anônimos de node_modules) |
 | T-003 | Pipeline CI/CD GitHub Actions | PR dispara pipeline. Falha em teste bloqueia merge. Deploy staging funciona. | Alta | M | T-001 | ✅ |
 | T-004 | Configurar Supabase e Prisma | `npx prisma migrate dev` funciona. Todas as tabelas criadas no Supabase. RLS ativo. | Alta | G | T-002 | ✅ (migration baseline aplicada via pooler IPv4 — 19 tabelas; RLS aplicado via supabase_rls.sql) |
 

@@ -255,7 +255,7 @@ SUPABASE_PUBLIC_ANON_KEY="eyJ..."
 **Progresso (atualizado em 2026-06-24):**
 
 - [x] T-001 — Monorepo (npm workspaces, tsconfig, eslint flat, husky) ✅
-- [~] T-002 — Docker Compose (api, web, redis, bull-board) — config pronta; falta validar com Docker ativo
+- [x] T-002 — Docker Compose (api, web, redis, bull-board) — `docker compose up` valida os 4 serviços ✅
 - [x] T-003 — Pipeline CI/CD GitHub Actions ✅
 - [x] T-004 — Supabase + Prisma (19 tabelas migradas + RLS) ✅
 - [x] T-005 — Backend: Auth com Supabase Auth (JWKS/ES256) ✅
