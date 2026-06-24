@@ -62,7 +62,7 @@
 ### ÉPICO 2.1 — Integração Evolution API
 | ID | Tarefa | Critérios de Aceite | Prio | Esforço | Deps | Status |
 |---|---|---|---|---|---|---|
-| T-012 | Módulo de integração Evolution API (backend) | Testes unitários cobrem todos os métodos. Retry funciona em falha temporária. | Alta | G | T-004 | ⬜ |
+| T-012 | Módulo de integração Evolution API (backend) | Testes unitários cobrem todos os métodos. Retry funciona em falha temporária. | Alta | G | T-004 | ✅ (evolution-api.service: createInstance/connectionState/connect/sendText/sendMedia/setWebhook + retry/backoff em rede/5xx, sem retry em 4xx. 11 testes unitários com HTTP mockado) |
 | T-013 | CRUD de Instâncias WhatsApp | CRUD funciona via API. Status atualizado ao conectar/desconectar. | Alta | M | T-012 | ⬜ |
 | T-014 | QR Code e pareamento | QR exibido no frontend. Status muda para 'Connected' ao escanear. WebSocket notifica. | Alta | M | T-013 | ⬜ |
 | T-015 | Receiver de Webhooks da Evolution API | Mensagem enviada para número conectado aparece no banco. Eventos processados corretamente. | Alta | G | T-013 | ⬜ |
