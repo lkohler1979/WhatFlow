@@ -70,7 +70,7 @@
 ### ÉPICO 2.2 — Tela de Instâncias no Frontend
 | ID | Tarefa | Critérios de Aceite | Prio | Esforço | Deps | Status |
 |---|---|---|---|---|---|---|
-| T-016 | Tela de gestão de instâncias | Usuário cria instância, escaneia QR, status muda para Connected em < 5s. | Alta | G | T-014, T-015 | ⬜ |
+| T-016 | Tela de gestão de instâncias | Usuário cria instância, escaneia QR, status muda para Connected em < 5s. | Alta | G | T-014, T-015 | 🟡 (tela completa: lista, criar, modal de QR Code com QR real, atualizar status, excluir — validada no browser contra a Evolution real. Status auto→Connected depende do polling/WebSocket T-018 — hoje atualiza por polling a cada 3s no modal) |
 | T-017 | Envio manual de mensagem de teste | Mensagem enviada aparece no WhatsApp do destinatário. Histórico visível. | Média | M | T-015 | ⬜ |
 | T-018 | WebSocket setup (Socket.io) | Status de instância atualiza no frontend sem refresh. Reconexão testada. | Alta | M | T-015 | ⬜ |
 
