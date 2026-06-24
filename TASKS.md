@@ -35,7 +35,7 @@
 | ID | Tarefa | Critérios de Aceite | Prio | Esforço | Deps | Status |
 |---|---|---|---|---|---|---|
 | T-001 | Inicializar repositório monorepo | `npm install` funciona. Lint e build (API) passam sem erros. Husky bloqueia commit com lint error. | Alta | M | — | ✅ |
-| T-002 | Docker Compose para ambiente dev | `docker compose up` inicia todos os serviços. API responde em :3000, Web em :4200. | Alta | M | T-001 | ⬜ |
+| T-002 | Docker Compose para ambiente dev | `docker compose up` inicia todos os serviços. API responde em :3000, Web em :4200. | Alta | M | T-001 | 🟡 (compose pronto: api/web/redis/bull-board; DB é Supabase hospedado, sem PG local. Validação de `docker compose up` pendente — daemon do Docker não estava ativo nesta máquina) |
 | T-003 | Pipeline CI/CD GitHub Actions | PR dispara pipeline. Falha em teste bloqueia merge. Deploy staging funciona. | Alta | M | T-001 | ✅ |
 | T-004 | Configurar Supabase e Prisma | `npx prisma migrate dev` funciona. Todas as tabelas criadas no Supabase. RLS ativo. | Alta | G | T-002 | ✅ (migration baseline aplicada via pooler IPv4 — 19 tabelas; RLS aplicado via supabase_rls.sql) |
 
@@ -45,14 +45,14 @@
 | T-005 | Backend: Auth com Supabase Auth | Usuário registra, recebe JWT. Token expirado retorna 401. Tenant criado no registro. | Alta | G | T-004 | ✅ (validado e2e: register cria tenant+JWT; /me 200 com claims; token inválido 401. Middleware verifica via JWKS/ES256) |
 | T-006 | Políticas RLS no Supabase | Usuário A não vê dados do usuário B. Testes de isolamento passam. | Alta | M | T-004 | ✅ (isolamento validado via PostgREST: tenant A só vê dados de A e vice-versa. Script: `npm run rls:smoke`) |
 | T-007 | Frontend: Módulo de autenticação Angular | Login funciona. Token salvo. Rota `/dashboard` exige auth. Logout limpa token. | Alta | G | T-005 | ✅ (validado no browser: register→token salvo→guard libera→/dashboard; shell separado do root). Falta botão de logout na UI |
-| T-008 | Gestão de usuários e papéis | OWNER convida AGENT. AGENT não acessa billing. Guards bloqueiam acessos. | Média | M | T-005 | ⬜ |
+| T-008 | Gestão de usuários e papéis | OWNER convida AGENT. AGENT não acessa billing. Guards bloqueiam acessos. | Média | M | T-005 | ✅ (módulo users: list/invite/role/remove escopado por tenant; `requireRole`→403; validado e2e: OWNER convida=201, AGENT convida=403, list=200, sem token=401) |
 
 ### ÉPICO 1.3 — Estrutura Base do Frontend
 | ID | Tarefa | Critérios de Aceite | Prio | Esforço | Deps | Status |
 |---|---|---|---|---|---|---|
 | T-009 | Scaffold Angular com design system | Storybook ou demo page mostra todos os componentes. Tema aplicado globalmente. | Alta | G | T-007 | 🟡 (app Angular bootstrapado: angular.json, main.ts, index.html, tsconfig.app; `ng build` passa. Falta design system/Storybook) |
 | T-010 | Roteamento e módulos lazy-loaded | Navegação funciona. Módulos carregam sob demanda. Breadcrumbs corretos. | Alta | M | T-009 | 🟡 (rotas lazy dos 8 módulos compilam em chunks separados; falta breadcrumbs) |
-| T-011 | Dashboard básico com métricas placeholder | Dashboard renderiza em desktop e mobile. Cards visíveis. Layout correto. | Média | P | T-010 | 🟡 (placeholder renderiza; falta cards de métricas) |
+| T-011 | Dashboard básico com métricas placeholder | Dashboard renderiza em desktop e mobile. Cards visíveis. Layout correto. | Média | P | T-010 | ✅ (4 KPI cards responsivos + header com usuário/papel e botão Sair; logout valida limpa token e volta ao /auth/login) |
 
 ---
 

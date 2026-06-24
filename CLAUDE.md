@@ -252,15 +252,17 @@ SUPABASE_PUBLIC_ANON_KEY="eyJ..."
 
 ## Sprint atual: Sprint 1 — Foundation & Infrastructure
 
-**Tarefas em andamento:**
+**Progresso (atualizado em 2026-06-24):**
 
-- [ ] T-001 — Inicializar repositório monorepo (yarn workspaces, tsconfig, eslint, husky)
-- [ ] T-002 — Docker Compose (api, web, redis, supabase local)
-- [ ] T-003 — Pipeline CI/CD GitHub Actions
-- [ ] T-004 — Configurar Supabase + Prisma (migrations, RLS)
-- [ ] T-005 — Backend: Auth com Supabase Auth
-- [ ] T-006 — Políticas RLS no Supabase
-- [ ] T-007 — Frontend: Módulo de autenticação Angular
+- [x] T-001 — Monorepo (npm workspaces, tsconfig, eslint flat, husky) ✅
+- [~] T-002 — Docker Compose (api, web, redis, bull-board) — config pronta; falta validar com Docker ativo
+- [x] T-003 — Pipeline CI/CD GitHub Actions ✅
+- [x] T-004 — Supabase + Prisma (19 tabelas migradas + RLS) ✅
+- [x] T-005 — Backend: Auth com Supabase Auth (JWKS/ES256) ✅
+- [x] T-006 — Políticas RLS no Supabase (isolamento validado) ✅
+- [x] T-007 — Frontend: Módulo de autenticação Angular (login/register/logout) ✅
+- [x] T-008 — Gestão de usuários e papéis (guards) ✅
+- [~] T-009/T-010/T-011 — Scaffold/rotas/dashboard ✅ (faltam design system, breadcrumbs)
 
 **Definição de pronto (DoD) para Sprint 1:**
 - Todos os serviços sobem com `docker compose up`

@@ -11,6 +11,7 @@ import { errorHandlerMiddleware } from '@middlewares/error-handler.middleware.js
 
 // ── Módulos (descomentar conforme implementar) ──
 import { authRoutes } from '@modules/auth/auth.routes.js';
+import { usersRoutes } from '@modules/users/users.routes.js';
 // import { instancesRoutes }        from '@modules/instances/instances.routes.js';
 // import { flowsRoutes }            from '@modules/flows/flows.routes.js';
 // import { contactsRoutes }         from '@modules/contacts/contacts.routes.js';
@@ -53,6 +54,7 @@ export function createApp(): { app: Express; httpServer: HttpServer; io: SocketS
   // ── Rotas da API ──
   const router = express.Router();
   router.use('/auth', authRoutes);
+  router.use('/users', usersRoutes);
   // router.use('/instances', instancesRoutes);
   // router.use('/flows',     flowsRoutes);
   // router.use('/contacts',  contactsRoutes);

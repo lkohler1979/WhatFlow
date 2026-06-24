@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
 import { config } from '@core/config.js';
-import { UnauthorizedError } from '@core/errors.js';
+import { ForbiddenError, UnauthorizedError } from '@core/errors.js';
 
 export interface JwtPayload extends JWTPayload {
   sub: string; // supabase user id
@@ -56,7 +56,7 @@ export async function authMiddleware(
 export function requireRole(...roles: string[]) {
   return (req: Request, _res: Response, next: NextFunction): void => {
     if (!req.userRole || !roles.includes(req.userRole)) {
-      return next(new UnauthorizedError('Permissão insuficiente'));
+      return next(new ForbiddenError('Permissão insuficiente'));
     }
     next();
   };
