@@ -5,6 +5,7 @@ jest.mock('@integrations/evolution-api/evolution-api.client.js');
 
 const get = jest.fn();
 const post = jest.fn();
+const del = jest.fn();
 const mockedGetClient = getEvolutionClient as jest.MockedFunction<typeof getEvolutionClient>;
 
 // erro estilo-axios: com response (status) ou sem response (rede)
@@ -14,7 +15,11 @@ function axiosError(status?: number) {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockedGetClient.mockReturnValue({ get, post } as unknown as ReturnType<typeof getEvolutionClient>);
+  mockedGetClient.mockReturnValue({
+    get,
+    post,
+    delete: del,
+  } as unknown as ReturnType<typeof getEvolutionClient>);
 });
 
 describe('evolutionApiService — métodos', () => {
@@ -69,6 +74,12 @@ describe('evolutionApiService — métodos', () => {
     expect(post).toHaveBeenCalledWith('/webhook/set/k', {
       webhook: { enabled: true, url: 'http://h/cb', events: ['messages.upsert'] },
     });
+  });
+
+  it('deleteInstance chama DELETE /instance/delete/{key}', async () => {
+    del.mockResolvedValueOnce({ data: { ok: true } });
+    await evolutionApiService.deleteInstance('k');
+    expect(del).toHaveBeenCalledWith('/instance/delete/k');
   });
 });
 

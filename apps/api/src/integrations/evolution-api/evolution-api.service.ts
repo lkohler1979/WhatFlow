@@ -122,4 +122,13 @@ export const evolutionApiService = {
       return data;
     });
   },
+
+  /** DELETE /instance/delete/{key} */
+  deleteInstance(key: string): Promise<unknown> {
+    const client = getEvolutionClient();
+    return withRetry('deleteInstance', async () => {
+      const { data } = await client.delete(`/instance/delete/${key}`);
+      return data;
+    });
+  },
 };
