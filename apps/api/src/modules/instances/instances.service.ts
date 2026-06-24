@@ -30,8 +30,12 @@ function toDto(i: Instance): InstanceDto {
 
 /** Normaliza o status retornado pela Evolution (várias formas) → enum interno. */
 function mapStatus(evo: unknown): InstanceStatus {
-  const e = evo as { status?: string; state?: string; instance?: { state?: string } };
-  const raw = e?.status ?? e?.state ?? e?.instance?.state;
+  const e = evo as {
+    status?: string;
+    state?: string;
+    instance?: { state?: string; status?: string };
+  };
+  const raw = e?.status ?? e?.state ?? e?.instance?.state ?? e?.instance?.status;
   switch (raw) {
     case 'open':
       return 'CONNECTED';
@@ -103,8 +107,8 @@ export const instancesService = {
     const inst = await instancesRepository.findByIdInTenant(id, tenantId);
     if (!inst) throw new NotFoundError('Instância');
     const evo = await evolutionApiService.connect(inst.evolutionKey);
-    const e = evo as { qrcode?: { base64?: string } };
-    const qrCode = e?.qrcode?.base64 ?? null;
+    const e = evo as { base64?: string; qrcode?: { base64?: string } };
+    const qrCode = e?.qrcode?.base64 ?? e?.base64 ?? null;
     const status = mapStatus(evo);
     await instancesRepository.update(id, tenantId, {
       qrCode,

@@ -15,7 +15,8 @@
 
 | # | Item | Detalhe |
 |---|------|---------|
-| P-14 | **Chave global da Evolution para criar instâncias** | A chave fornecida (`439F05DE...`) é o **token da instância TrilhaDBV** (escopo de instância): permite **ler/operar** nela, mas `POST /instance/create` retorna **401**. Para o CRUD completo do T-013 (criar/excluir) é preciso a **`AUTHENTICATION_API_KEY` global** do servidor `evo.kellen-ia.com` — OU usar a Evolution local no docker-compose (chave sob nosso controle). |
+| ~~P-14~~ | ~~Chave global da Evolution~~ | ✅ **Resolvido**: recebida a `AUTHENTICATION_API_KEY` global; T-013 CRUD validado e2e (create/delete na Evolution real). A chave global está no `.env` (gitignored). |
+| P-15 | **Rotacionar a chave global da Evolution** | A `AUTHENTICATION_API_KEY` passou pelo chat — rotacionar no servidor `evo.kellen-ia.com` quando possível e atualizar `.env`/`apps/api/.env`. |
 
 ## 🔐 Segurança (ação do usuário)
 

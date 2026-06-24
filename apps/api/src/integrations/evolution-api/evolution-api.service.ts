@@ -48,6 +48,7 @@ async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
 
 export interface CreateInstanceOptions {
   qrcode?: boolean;
+  integration?: string;
   webhookUrl?: string;
   webhookEvents?: string[];
 }
@@ -67,6 +68,7 @@ export const evolutionApiService = {
       const body: Record<string, unknown> = {
         instanceName,
         qrcode: opts.qrcode ?? true,
+        integration: opts.integration ?? 'WHATSAPP-BAILEYS',
       };
       if (opts.webhookUrl) {
         body.webhook = { url: opts.webhookUrl, events: opts.webhookEvents ?? [] };
