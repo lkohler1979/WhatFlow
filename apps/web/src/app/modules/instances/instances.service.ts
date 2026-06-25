@@ -39,4 +39,15 @@ export class InstancesService {
   remove(id: string): Observable<void> {
     return this.api.delete<void>(`/instances/${id}`);
   }
+
+  sendMessage(
+    id: string,
+    number: string,
+    text: string,
+  ): Observable<{ messageId: string; status: string }> {
+    return this.api.post<{ messageId: string; status: string }>(`/instances/${id}/send`, {
+      number,
+      text,
+    });
+  }
 }

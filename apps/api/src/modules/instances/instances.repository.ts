@@ -24,4 +24,59 @@ export const instancesRepository = {
     const res = await prisma.instance.deleteMany({ where: { id, tenantId } });
     return res.count;
   },
+
+  // ── Persistência de mensagens (envio manual) ──
+  async upsertContact(tenantId: string, phone: string): Promise<string> {
+    const contact = await prisma.contact.upsert({
+      where: { tenantId_phone: { tenantId, phone } },
+      update: {},
+      create: { tenantId, phone },
+    });
+    return contact.id;
+  },
+
+  async findOrCreateConversationId(
+    tenantId: string,
+    instanceId: string,
+    contactId: string,
+  ): Promise<string> {
+    const existing = await prisma.conversation.findFirst({
+      where: { tenantId, instanceId, contactId },
+      select: { id: true },
+    });
+    if (existing) return existing.id;
+    const created = await prisma.conversation.create({
+      data: { tenantId, instanceId, contactId },
+      select: { id: true },
+    });
+    return created.id;
+  },
+
+  createOutboundMessage(input: {
+    conversationId: string;
+    sentByAgentId?: string;
+    externalId?: string;
+    content: string;
+  }): Promise<{ id: string }> {
+    return prisma.message.create({
+      data: {
+        conversationId: input.conversationId,
+        sentByAgentId: input.sentByAgentId,
+        externalId: input.externalId,
+        direction: 'OUTBOUND',
+        type: 'TEXT',
+        content: input.content,
+        status: 'SENT',
+        timestamp: new Date(),
+      },
+      select: { id: true },
+    });
+  },
+
+  async touchConversation(id: string, preview: string): Promise<void> {
+    await prisma.conversation.update({
+      where: { id },
+      data: { lastMessageAt: new Date(), lastMessagePreview: preview.slice(0, 200) },
+    });
+  },
 };

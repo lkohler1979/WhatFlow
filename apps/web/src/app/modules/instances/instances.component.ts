@@ -47,6 +47,7 @@ const STATUS_LABEL: Record<InstanceStatus, string> = {
               <p class="phone">{{ inst.phone || 'sem número' }}</p>
               <div class="actions">
                 <button (click)="openQr(inst)">QR Code</button>
+                <button (click)="openSend(inst)">Enviar</button>
                 <button (click)="refresh(inst)">Atualizar</button>
                 <button class="danger" (click)="remove(inst)">Excluir</button>
               </div>
@@ -72,6 +73,29 @@ const STATUS_LABEL: Record<InstanceStatus, string> = {
               <button (click)="reloadQr()">Recarregar QR</button>
               <button class="danger" (click)="closeQr()">Fechar</button>
             </div>
+          </div>
+        </div>
+      }
+      @if (sendFor()) {
+        <div class="modal-backdrop" (click)="closeSend()">
+          <div class="modal" (click)="$event.stopPropagation()">
+            <h2>Enviar mensagem — "{{ sendFor()?.name }}"</h2>
+            <form [formGroup]="sendForm" (ngSubmit)="submitSend()">
+              <input formControlName="number" placeholder="Número (ex.: 5527999887766)" />
+              <textarea formControlName="text" rows="3" placeholder="Mensagem"></textarea>
+              @if (sendErr()) {
+                <p class="error">{{ sendErr() }}</p>
+              }
+              @if (sendOk()) {
+                <p class="ok">Mensagem enviada ✓</p>
+              }
+              <div class="actions center">
+                <button type="submit" [disabled]="sendForm.invalid || sending()">
+                  {{ sending() ? 'Enviando...' : 'Enviar' }}
+                </button>
+                <button type="button" class="danger" (click)="closeSend()">Fechar</button>
+              </div>
+            </form>
           </div>
         </div>
       }
@@ -202,6 +226,24 @@ const STATUS_LABEL: Record<InstanceStatus, string> = {
       .status {
         margin: 0.5rem 0;
       }
+      .modal form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        margin-top: 0.75rem;
+      }
+      .modal input,
+      .modal textarea {
+        padding: 0.55rem 0.7rem;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        font: inherit;
+        width: 100%;
+      }
+      .ok {
+        color: #065f46;
+        font-size: 0.85rem;
+      }
     `,
   ],
 })
@@ -244,6 +286,15 @@ export class InstancesComponent implements OnInit, OnDestroy {
 
   form = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.minLength(2)]],
+  });
+
+  sendFor = signal<Instance | null>(null);
+  sending = signal(false);
+  sendOk = signal(false);
+  sendErr = signal<string | null>(null);
+  sendForm = this.fb.nonNullable.group({
+    number: ['', [Validators.required, Validators.pattern(/^\d{8,15}$/)]],
+    text: ['', [Validators.required]],
   });
 
   ngOnInit(): void {
@@ -345,5 +396,36 @@ export class InstancesComponent implements OnInit, OnDestroy {
     this.stopPoll();
     this.qrFor.set(null);
     this.qrImage.set(null);
+  }
+
+  openSend(inst: Instance): void {
+    this.sendFor.set(inst);
+    this.sendOk.set(false);
+    this.sendErr.set(null);
+    this.sendForm.reset({ number: '', text: '' });
+  }
+
+  closeSend(): void {
+    this.sendFor.set(null);
+  }
+
+  submitSend(): void {
+    const inst = this.sendFor();
+    if (!inst || this.sendForm.invalid) return;
+    this.sending.set(true);
+    this.sendOk.set(false);
+    this.sendErr.set(null);
+    const { number, text } = this.sendForm.getRawValue();
+    this.svc.sendMessage(inst.id, number, text).subscribe({
+      next: () => {
+        this.sending.set(false);
+        this.sendOk.set(true);
+        this.sendForm.reset({ number, text: '' });
+      },
+      error: (e: { error?: { message?: string } }) => {
+        this.sending.set(false);
+        this.sendErr.set(e?.error?.message ?? 'Falha ao enviar mensagem');
+      },
+    });
   }
 }

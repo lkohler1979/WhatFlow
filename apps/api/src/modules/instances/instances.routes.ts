@@ -3,7 +3,7 @@ import { instancesController } from './instances.controller.js';
 import { validate } from '@middlewares/validate.middleware.js';
 import { authMiddleware, requireRole } from '@middlewares/auth.middleware.js';
 import { requireTenant } from '@middlewares/tenant-context.middleware.js';
-import { CreateInstanceSchema } from './instances.schema.js';
+import { CreateInstanceSchema, SendMessageSchema } from './instances.schema.js';
 
 export const instancesRoutes: Router = Router();
 
@@ -18,4 +18,5 @@ instancesRoutes.post(
   validate(CreateInstanceSchema),
   instancesController.create,
 );
+instancesRoutes.post('/:id/send', validate(SendMessageSchema), instancesController.send);
 instancesRoutes.delete('/:id', requireRole('OWNER', 'ADMIN'), instancesController.remove);

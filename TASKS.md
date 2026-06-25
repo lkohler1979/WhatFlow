@@ -71,7 +71,7 @@
 | ID | Tarefa | Critérios de Aceite | Prio | Esforço | Deps | Status |
 |---|---|---|---|---|---|---|
 | T-016 | Tela de gestão de instâncias | Usuário cria instância, escaneia QR, status muda para Connected em < 5s. | Alta | G | T-014, T-015 | 🟡 (tela completa: lista, criar, modal de QR Code com QR real, atualizar status, excluir — validada no browser contra a Evolution real. Status auto→Connected depende do polling/WebSocket T-018 — hoje atualiza por polling a cada 3s no modal) |
-| T-017 | Envio manual de mensagem de teste | Mensagem enviada aparece no WhatsApp do destinatário. Histórico visível. | Média | M | T-015 | ⬜ |
+| T-017 | Envio manual de mensagem de teste | Mensagem enviada aparece no WhatsApp do destinatário. Histórico visível. | Média | M | T-015 | 🟡 (backend POST /v1/instances/:id/send: valida conexão (409 se não CONNECTED), envia via sendText e persiste mensagem OUTBOUND (contato/conversa); UI com modal de envio na tela de instâncias. 40 testes (3 do sendMessage). Build OK; validação no browser a seguir) |
 | T-018 | WebSocket setup (Socket.io) | Status de instância atualiza no frontend sem refresh. Reconexão testada. | Alta | M | T-015 | ✅ (validado no browser: POST de webhook connection.update → card muda connecting/open SEM refresh. SocketService entra na sala do tenant; callbacks em NgZone.run; effect com allowSignalWrites aplica o status) |
 
 ---

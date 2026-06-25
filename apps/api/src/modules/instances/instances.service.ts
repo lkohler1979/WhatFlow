@@ -3,7 +3,7 @@ import { instancesRepository } from './instances.repository.js';
 import { evolutionApiService } from '@integrations/evolution-api/evolution-api.service.js';
 import { logger } from '@core/logger.js';
 import { config } from '@core/config.js';
-import { NotFoundError } from '@core/errors.js';
+import { AppError, NotFoundError } from '@core/errors.js';
 
 const WEBHOOK_EVENTS = [
   'CONNECTION_UPDATE',
@@ -11,7 +11,7 @@ const WEBHOOK_EVENTS = [
   'MESSAGES_UPSERT',
   'MESSAGES_UPDATE',
 ];
-import type { CreateInstanceDto } from './instances.schema.js';
+import type { CreateInstanceDto, SendMessageDto } from './instances.schema.js';
 import type { Instance, InstanceStatus } from '@prisma/client';
 
 interface InstanceDto {
@@ -146,5 +146,39 @@ export const instancesService = {
       .deleteInstance(inst.evolutionKey)
       .catch(err => logger.warn({ err, id }, 'Falha ao remover instância na Evolution'));
     await instancesRepository.remove(id, tenantId);
+  },
+
+  /** Envia uma mensagem de texto pela instância e persiste como OUTBOUND. */
+  async sendMessage(
+    tenantId: string,
+    id: string,
+    dto: SendMessageDto,
+  ): Promise<{ messageId: string; status: string; externalId?: string }> {
+    const inst = await instancesRepository.findByIdInTenant(id, tenantId);
+    if (!inst) throw new NotFoundError('Instância');
+    if (inst.status !== 'CONNECTED') {
+      throw new AppError('Instância não está conectada', 409, 'INSTANCE_NOT_CONNECTED');
+    }
+
+    const result = await evolutionApiService.sendText(inst.evolutionKey, {
+      number: dto.number,
+      text: dto.text,
+    });
+    const externalId = (result as { key?: { id?: string } })?.key?.id;
+
+    const contactId = await instancesRepository.upsertContact(tenantId, dto.number);
+    const conversationId = await instancesRepository.findOrCreateConversationId(
+      tenantId,
+      id,
+      contactId,
+    );
+    const msg = await instancesRepository.createOutboundMessage({
+      conversationId,
+      externalId,
+      content: dto.text,
+    });
+    await instancesRepository.touchConversation(conversationId, dto.text);
+
+    return { messageId: msg.id, status: 'SENT', externalId };
   },
 };

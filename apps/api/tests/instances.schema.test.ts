@@ -1,4 +1,8 @@
-import { CreateInstanceSchema, UpdateInstanceSchema } from '@modules/instances/instances.schema.js';
+import {
+  CreateInstanceSchema,
+  UpdateInstanceSchema,
+  SendMessageSchema,
+} from '@modules/instances/instances.schema.js';
 
 describe('instances.schema', () => {
   it('aceita criação mínima (só name) e aplica defaults de settings', () => {
@@ -18,5 +22,21 @@ describe('instances.schema', () => {
   it('UpdateInstanceSchema permite parcial', () => {
     expect(UpdateInstanceSchema.safeParse({}).success).toBe(true);
     expect(UpdateInstanceSchema.safeParse({ name: 'Novo Nome' }).success).toBe(true);
+  });
+
+  describe('SendMessageSchema', () => {
+    it('aceita número (só dígitos) e texto', () => {
+      expect(SendMessageSchema.safeParse({ number: '5527999887766', text: 'oi' }).success).toBe(
+        true,
+      );
+    });
+    it('rejeita número com caracteres não numéricos', () => {
+      expect(SendMessageSchema.safeParse({ number: '+55 (27) 99988', text: 'oi' }).success).toBe(
+        false,
+      );
+    });
+    it('rejeita texto vazio', () => {
+      expect(SendMessageSchema.safeParse({ number: '5527999887766', text: '' }).success).toBe(false);
+    });
   });
 });

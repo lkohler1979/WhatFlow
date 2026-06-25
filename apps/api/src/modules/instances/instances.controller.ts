@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { instancesService } from './instances.service.js';
-import type { CreateInstanceDto } from './instances.schema.js';
+import type { CreateInstanceDto, SendMessageDto } from './instances.schema.js';
 
 export const instancesController = {
   async list(req: Request, res: Response): Promise<void> {
@@ -29,5 +29,14 @@ export const instancesController = {
   async remove(req: Request, res: Response): Promise<void> {
     await instancesService.remove(req.tenantId as string, req.params.id as string);
     res.status(204).send();
+  },
+
+  async send(req: Request, res: Response): Promise<void> {
+    const result = await instancesService.sendMessage(
+      req.tenantId as string,
+      req.params.id as string,
+      req.body as SendMessageDto,
+    );
+    res.status(201).json(result);
   },
 };
