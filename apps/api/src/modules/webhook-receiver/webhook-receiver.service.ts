@@ -47,7 +47,7 @@ export const webhookReceiverService = {
       logger.warn({ key, rawEvent }, 'Webhook para instância desconhecida — ignorado');
       return;
     }
-    const event = rawEvent.toLowerCase().replace(/_/g, '.');
+    const event = rawEvent.toLowerCase().replace(/[-_]/g, '.');
 
     switch (event) {
       case 'connection.update': {

@@ -65,7 +65,7 @@
 | T-012 | Módulo de integração Evolution API (backend) | Testes unitários cobrem todos os métodos. Retry funciona em falha temporária. | Alta | G | T-004 | ✅ (evolution-api.service: createInstance/connectionState/connect/sendText/sendMedia/setWebhook + retry/backoff em rede/5xx, sem retry em 4xx. 11 testes unitários com HTTP mockado) |
 | T-013 | CRUD de Instâncias WhatsApp | CRUD funciona via API. Status atualizado ao conectar/desconectar. | Alta | M | T-012 | ✅ (e2e completo contra a Evolution real: create 201→QR_PENDING, list, get, qrcode 200 com base64, delete 204 removendo na Evolution+banco. create envia `integration: WHATSAPP-BAILEYS`. 26 testes OK) |
 | T-014 | QR Code e pareamento | QR exibido no frontend. Status muda para 'Connected' ao escanear. WebSocket notifica. | Alta | M | T-013 | ⬜ |
-| T-015 | Receiver de Webhooks da Evolution API | Mensagem enviada para número conectado aparece no banco. Eventos processados corretamente. | Alta | G | T-013 | 🟡 (POST /v1/webhooks/evolution/:key: trata connection.update→status, qrcode.updated→QR, messages.upsert→persiste contato/conversa/mensagem INBOUND, messages.update→status. 8 testes unitários. e2e pendente: Evolution local no compose chamando a API) |
+| T-015 | Receiver de Webhooks da Evolution API | Mensagem enviada para número conectado aparece no banco. Eventos processados corretamente. | Alta | G | T-013 | ✅ (e2e contra Evolution local no compose: webhook registrado no create, Evolution entrega na API; messages.upsert persistiu contato/conversa/mensagem (log "Mensagem recebida persistida"). Aceita entrega base /:key e por-evento /:key/:event. 8 testes unitários) |
 
 ### ÉPICO 2.2 — Tela de Instâncias no Frontend
 | ID | Tarefa | Critérios de Aceite | Prio | Esforço | Deps | Status |

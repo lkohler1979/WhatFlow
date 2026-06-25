@@ -10,13 +10,15 @@ export const webhookReceiverController = {
   async receive(req: Request, res: Response): Promise<void> {
     const key = req.params.key as string;
     const body = req.body as { event?: string; data?: unknown };
+    // A Evolution pode entregar no base (/:key) ou por evento (/:key/:event).
+    const event = body?.event ?? (req.params.event as string | undefined);
     res.status(200).json({ received: true });
     try {
-      if (body?.event) {
-        await webhookReceiverService.handle(key, body.event, body.data);
+      if (event) {
+        await webhookReceiverService.handle(key, event, body?.data ?? body);
       }
     } catch (err) {
-      logger.error({ err, key, event: body?.event }, 'Falha ao processar webhook da Evolution');
+      logger.error({ err, key, event }, 'Falha ao processar webhook da Evolution');
     }
   },
 };
