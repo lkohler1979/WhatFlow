@@ -212,19 +212,23 @@ export class InstancesComponent implements OnInit, OnDestroy {
   private socket = inject(SocketService);
 
   constructor() {
-    // Aplica atualizações de status recebidas em tempo real (Socket.io)
-    effect(() => {
-      const evt = this.socket.instanceStatus();
-      if (!evt) return;
-      this.instances.update(list =>
-        list.map(i => (i.id === evt.id ? { ...i, status: evt.status } : i)),
-      );
-      if (this.qrFor()?.id === evt.id) {
-        this.qrStatus.set(evt.status);
-        if (evt.qrCode) this.qrImage.set(this.sanitizer.bypassSecurityTrustUrl(evt.qrCode));
-        if (evt.status === 'CONNECTED') this.stopPoll();
-      }
-    });
+    // Aplica atualizações de status recebidas em tempo real (Socket.io).
+    // allowSignalWrites: o effect escreve nos signals de estado da tela.
+    effect(
+      () => {
+        const evt = this.socket.instanceStatus();
+        if (!evt) return;
+        this.instances.update(list =>
+          list.map(i => (i.id === evt.id ? { ...i, status: evt.status } : i)),
+        );
+        if (this.qrFor()?.id === evt.id) {
+          this.qrStatus.set(evt.status);
+          if (evt.qrCode) this.qrImage.set(this.sanitizer.bypassSecurityTrustUrl(evt.qrCode));
+          if (evt.status === 'CONNECTED') this.stopPoll();
+        }
+      },
+      { allowSignalWrites: true },
+    );
   }
 
   instances = signal<Instance[]>([]);
