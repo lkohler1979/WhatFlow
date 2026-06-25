@@ -22,6 +22,7 @@
 | ~~P-14~~ | ~~Chave global da Evolution~~ | ✅ **Resolvido**: recebida a `AUTHENTICATION_API_KEY` global; T-013 CRUD validado e2e (create/delete na Evolution real). A chave global está no `.env` (gitignored). |
 | P-15 | **Rotacionar a chave global da Evolution** | A `AUTHENTICATION_API_KEY` passou pelo chat — rotacionar no servidor `evo.kellen-ia.com` quando possível e atualizar `.env`/`apps/api/.env`. |
 | P-17 | **Excluir instância com conversas falha (FK)** | `DELETE /v1/instances/:id` retorna 500 se a instância já tem `Conversation`/`Message` — a relação `Conversation → Instance` não tem `onDelete: Cascade` no schema. Ajustar no `schema.prisma` (+ migration) ou apagar conversas/mensagens antes no service. |
+| P-18 | **Hot-reload do `api` no Docker (Windows)** | O `tsx watch` dentro do container NÃO detecta mudanças no bind mount do Windows → após editar o backend é preciso `docker compose restart api` para o container recarregar. Opções: usar polling do tsx (`--include`/`CHOKIDAR_USEPOLLING`) ou documentar o restart no README. |
 
 ## 🔐 Segurança (ação do usuário)
 
