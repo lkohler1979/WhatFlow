@@ -17,6 +17,9 @@ const envSchema = z.object({
   EVOLUTION_API_URL: z.string(),
   EVOLUTION_API_KEY: z.string(),
   EVOLUTION_WEBHOOK_SECRET: z.string().default(''),
+  // Base pública da API que a Evolution usará para enviar webhooks.
+  // Ex.: http://api:3000/v1 (no compose) ou a URL pública/túnel. Vazio = não registra webhook.
+  WEBHOOK_BASE_URL: z.string().default(''),
 
   GROQ_API_KEY: z.string().default(''),
   GROQ_MODEL: z.string().default('llama-3.1-70b-versatile'),

@@ -2,7 +2,15 @@ import { randomUUID } from 'node:crypto';
 import { instancesRepository } from './instances.repository.js';
 import { evolutionApiService } from '@integrations/evolution-api/evolution-api.service.js';
 import { logger } from '@core/logger.js';
+import { config } from '@core/config.js';
 import { NotFoundError } from '@core/errors.js';
+
+const WEBHOOK_EVENTS = [
+  'CONNECTION_UPDATE',
+  'QRCODE_UPDATED',
+  'MESSAGES_UPSERT',
+  'MESSAGES_UPDATE',
+];
 import type { CreateInstanceDto } from './instances.schema.js';
 import type { Instance, InstanceStatus } from '@prisma/client';
 
@@ -76,6 +84,18 @@ export const instancesService = {
       status: mapStatus(evo),
       settings: (dto.settings ?? {}) as object,
     });
+
+    // Registra o webhook para a Evolution enviar eventos de volta (T-015).
+    if (config.WEBHOOK_BASE_URL) {
+      const url = `${config.WEBHOOK_BASE_URL.replace(/\/+$/, '')}/webhooks/evolution/${evolutionKey}`;
+      await evolutionApiService
+        .setWebhook(evolutionKey, url, WEBHOOK_EVENTS)
+        .then(() => instancesRepository.update(created.id, tenantId, { webhookUrl: url }))
+        .catch(err =>
+          logger.warn({ err, evolutionKey }, 'Falha ao registrar webhook na Evolution'),
+        );
+    }
+
     return toDto(created);
   },
 
