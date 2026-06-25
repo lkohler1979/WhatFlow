@@ -13,6 +13,7 @@ import { errorHandlerMiddleware } from '@middlewares/error-handler.middleware.js
 import { authRoutes } from '@modules/auth/auth.routes.js';
 import { usersRoutes } from '@modules/users/users.routes.js';
 import { instancesRoutes } from '@modules/instances/instances.routes.js';
+import { webhookReceiverRoutes } from '@modules/webhook-receiver/webhook-receiver.routes.js';
 // import { flowsRoutes }            from '@modules/flows/flows.routes.js';
 // import { contactsRoutes }         from '@modules/contacts/contacts.routes.js';
 // import { conversationsRoutes }    from '@modules/conversations/conversations.routes.js';
@@ -56,6 +57,7 @@ export function createApp(): { app: Express; httpServer: HttpServer; io: SocketS
   router.use('/auth', authRoutes);
   router.use('/users', usersRoutes);
   router.use('/instances', instancesRoutes);
+  router.use('/webhooks/evolution', webhookReceiverRoutes);
   // router.use('/flows',     flowsRoutes);
   // router.use('/contacts',  contactsRoutes);
   // ... (descomentar conforme implementar)
