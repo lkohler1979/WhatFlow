@@ -1,4 +1,5 @@
 import { logger } from '@core/logger.js';
+import { emitToTenant } from '@core/realtime.js';
 import { webhookReceiverRepository as repo } from './webhook-receiver.repository.js';
 import type { InstanceStatus } from '@prisma/client';
 
@@ -51,13 +52,22 @@ export const webhookReceiverService = {
     switch (event) {
       case 'connection.update': {
         const d = data as { state?: string; instance?: { state?: string } };
-        await repo.updateInstanceStatus(inst.id, mapState(d?.state ?? d?.instance?.state));
+        const status = mapState(d?.state ?? d?.instance?.state);
+        await repo.updateInstanceStatus(inst.id, status);
+        emitToTenant(inst.tenantId, 'instance:status', { id: inst.id, status });
         break;
       }
       case 'qrcode.updated': {
         const d = data as { qrcode?: { base64?: string }; base64?: string };
         const b64 = d?.qrcode?.base64 ?? d?.base64;
-        if (b64) await repo.updateInstanceQr(inst.id, b64);
+        if (b64) {
+          await repo.updateInstanceQr(inst.id, b64);
+          emitToTenant(inst.tenantId, 'instance:status', {
+            id: inst.id,
+            status: 'QR_PENDING',
+            qrCode: b64,
+          });
+        }
         break;
       }
       case 'messages.upsert': {
@@ -104,6 +114,11 @@ export const webhookReceiverService = {
       content,
     });
     await repo.touchConversation(conversation.id, content ?? '[mídia]');
+    emitToTenant(tenantId, 'message:new', {
+      conversationId: conversation.id,
+      contactId,
+      preview: content ?? '[mídia]',
+    });
     logger.info({ instanceId, phone }, 'Mensagem recebida persistida');
   },
 };

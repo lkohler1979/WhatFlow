@@ -72,7 +72,7 @@
 |---|---|---|---|---|---|---|
 | T-016 | Tela de gestão de instâncias | Usuário cria instância, escaneia QR, status muda para Connected em < 5s. | Alta | G | T-014, T-015 | 🟡 (tela completa: lista, criar, modal de QR Code com QR real, atualizar status, excluir — validada no browser contra a Evolution real. Status auto→Connected depende do polling/WebSocket T-018 — hoje atualiza por polling a cada 3s no modal) |
 | T-017 | Envio manual de mensagem de teste | Mensagem enviada aparece no WhatsApp do destinatário. Histórico visível. | Média | M | T-015 | ⬜ |
-| T-018 | WebSocket setup (Socket.io) | Status de instância atualiza no frontend sem refresh. Reconexão testada. | Alta | M | T-015 | ⬜ |
+| T-018 | WebSocket setup (Socket.io) | Status de instância atualiza no frontend sem refresh. Reconexão testada. | Alta | M | T-015 | 🟡 (core/realtime emitToTenant; webhook receiver emite instance:status/message:new; SocketService (frontend) entra na sala do tenant; tela de instâncias atualiza o status via effect — build OK, validação no browser a seguir) |
 
 ---
 

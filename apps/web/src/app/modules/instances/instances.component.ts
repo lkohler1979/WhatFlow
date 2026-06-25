@@ -1,7 +1,8 @@
-import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, effect, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { InstancesService, Instance, InstanceStatus } from './instances.service';
+import { SocketService } from '@core/services/socket.service';
 
 const STATUS_LABEL: Record<InstanceStatus, string> = {
   PENDING: 'Pendente',
@@ -208,6 +209,23 @@ export class InstancesComponent implements OnInit, OnDestroy {
   private svc = inject(InstancesService);
   private fb = inject(FormBuilder);
   private sanitizer = inject(DomSanitizer);
+  private socket = inject(SocketService);
+
+  constructor() {
+    // Aplica atualizações de status recebidas em tempo real (Socket.io)
+    effect(() => {
+      const evt = this.socket.instanceStatus();
+      if (!evt) return;
+      this.instances.update(list =>
+        list.map(i => (i.id === evt.id ? { ...i, status: evt.status } : i)),
+      );
+      if (this.qrFor()?.id === evt.id) {
+        this.qrStatus.set(evt.status);
+        if (evt.qrCode) this.qrImage.set(this.sanitizer.bypassSecurityTrustUrl(evt.qrCode));
+        if (evt.status === 'CONNECTED') this.stopPoll();
+      }
+    });
+  }
 
   instances = signal<Instance[]>([]);
   loading = signal(true);
@@ -225,6 +243,7 @@ export class InstancesComponent implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
+    this.socket.connect();
     this.load();
   }
 

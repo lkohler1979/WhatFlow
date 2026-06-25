@@ -5,6 +5,7 @@ import { createServer, type Server as HttpServer } from 'http';
 import { Server as SocketServer } from 'socket.io';
 import { config } from '@core/config.js';
 import { logger } from '@core/logger.js';
+import { setIo } from '@core/realtime.js';
 import { globalRateLimit } from '@middlewares/rate-limit.middleware.js';
 import { requestIdMiddleware } from '@middlewares/request-id.middleware.js';
 import { errorHandlerMiddleware } from '@middlewares/error-handler.middleware.js';
@@ -32,6 +33,7 @@ export function createApp(): { app: Express; httpServer: HttpServer; io: SocketS
   const io = new SocketServer(httpServer, {
     cors: { origin: config.CORS_ORIGINS.split(','), credentials: true },
   });
+  setIo(io);
 
   io.on('connection', socket => {
     logger.debug({ socketId: socket.id }, 'Socket conectado');
