@@ -21,6 +21,7 @@
 |---|------|---------|
 | ~~P-14~~ | ~~Chave global da Evolution~~ | ✅ **Resolvido**: recebida a `AUTHENTICATION_API_KEY` global; T-013 CRUD validado e2e (create/delete na Evolution real). A chave global está no `.env` (gitignored). |
 | P-15 | **Rotacionar a chave global da Evolution** | A `AUTHENTICATION_API_KEY` passou pelo chat — rotacionar no servidor `evo.kellen-ia.com` quando possível e atualizar `.env`/`apps/api/.env`. |
+| P-17 | **Excluir instância com conversas falha (FK)** | `DELETE /v1/instances/:id` retorna 500 se a instância já tem `Conversation`/`Message` — a relação `Conversation → Instance` não tem `onDelete: Cascade` no schema. Ajustar no `schema.prisma` (+ migration) ou apagar conversas/mensagens antes no service. |
 
 ## 🔐 Segurança (ação do usuário)
 
