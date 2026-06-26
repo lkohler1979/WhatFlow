@@ -16,6 +16,13 @@ services:
       - EVOLUTION_API_KEY=whatflow-local-dev
       # URL que a Evolution usa para mandar webhooks de volta (rede do compose)
       - WEBHOOK_BASE_URL=http://api:3000/v1
+      # Hot-reload no Windows/Docker: o filesystem montado nem sempre emite eventos
+      # inotify, então forçamos polling (envs inofensivas). P-18.
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      # Obs.: o `tsx watch` (usa chokidar) deve honrar CHOKIDAR_USEPOLLING. Se mesmo
+      # assim o hot-reload não disparar ao editar o backend, em último caso rode:
+      #   docker compose restart api
     depends_on:
       redis:
         condition: service_healthy

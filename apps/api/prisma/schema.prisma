@@ -419,7 +419,7 @@ model Conversation {
   updatedAt        DateTime           @updatedAt @map("updated_at")
 
   tenant       Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  instance     Instance          @relation(fields: [instanceId], references: [id])
+  instance     Instance          @relation(fields: [instanceId], references: [id], onDelete: Cascade)
   contact      Contact           @relation(fields: [contactId], references: [id])
   assignedUser User?             @relation("AssignedAgent", fields: [assignedTo], references: [id])
   messages     Message[]
