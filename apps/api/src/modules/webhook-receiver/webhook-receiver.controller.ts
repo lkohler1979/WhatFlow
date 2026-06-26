@@ -9,13 +9,14 @@ export const webhookReceiverController = {
    */
   async receive(req: Request, res: Response): Promise<void> {
     const key = req.params.key as string;
-    const body = req.body as { event?: string; data?: unknown };
+    const body = req.body as { event?: string; data?: unknown; sender?: string };
     // A Evolution pode entregar no base (/:key) ou por evento (/:key/:event).
     const event = body?.event ?? (req.params.event as string | undefined);
     res.status(200).json({ received: true });
     try {
       if (event) {
-        await webhookReceiverService.handle(key, event, body?.data ?? body);
+        // `sender` (envelope) traz o telefone real quando o remoteJid vem como @lid.
+        await webhookReceiverService.handle(key, event, body?.data ?? body, body?.sender);
       }
     } catch (err) {
       logger.error({ err, key, event }, 'Falha ao processar webhook da Evolution');

@@ -105,6 +105,10 @@ services:
       CACHE_REDIS_PREFIX_KEY: evolution
       CACHE_LOCAL_ENABLED: "false"
       DEL_INSTANCE: "false"
+      # Fixa a versão do WhatsApp Web — sem isto o Baileys anuncia uma versão
+      # desatualizada e o WhatsApp recusa a conexão com statusReason 405 (QR nunca gera).
+      # Atualizar periodicamente (ver wppconnect-team/wa-version).
+      CONFIG_SESSION_PHONE_VERSION: "2.3000.1042201107"
     depends_on:
       evolution-postgres:
         condition: service_healthy

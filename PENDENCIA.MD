@@ -15,7 +15,7 @@
 
 | # | Item | Detalhe |
 |---|------|---------|
-| P-16 | **e2e do webhook (T-015) com Evolution local** | Config pronta: `docker compose up` sobe `evolution-api` (v2) + `evolution-postgres`; a API no compose aponta para a Evolution local e registra o webhook (`WEBHOOK_BASE_URL=http://api:3000/v1`). Falta rodar o e2e (criar instância → Evolution chama `POST /v1/webhooks/evolution/:key` → status/QR/mensagens no banco). **Bloqueio:** o Docker Desktop desta máquina é instável (o daemon cai sozinho). Quando estável: `docker compose up -d` e criar uma instância pela tela; ao escanear o QR num WhatsApp de teste chega `messages.upsert`. |
+| ~~P-16~~ | ~~e2e do webhook (T-015) + bot (T-022) com Evolution local~~ | ✅ **FEITO** (2026-06-26): e2e real validado ponta a ponta. Instância criada → QR escaneado → `connection.update`/`qrcode.updated`/`messages.upsert` chegam ao `POST /v1/webhooks/evolution/:key` → bot casa o gatilho `oi`, envia boas-vindas+menu e persiste a `FlowSession`. **2 bugs reais corrigidos no processo:** (1) o Baileys anunciava versão WA desatualizada → loop `connecting/close statusReason:405`, QR nunca gerava → fixado `CONFIG_SESSION_PHONE_VERSION` no compose; (2) o `remoteJid` chega como `@lid` (privacidade do WhatsApp), não telefone → o envio da resposta dava `Bad Request exists:false` → receiver agora usa o `sender` do envelope p/ o número real. |
 
 | # | Item | Detalhe |
 |---|------|---------|

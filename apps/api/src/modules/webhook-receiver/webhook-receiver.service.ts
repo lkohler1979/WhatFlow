@@ -17,9 +17,13 @@ function mapState(raw?: string): InstanceStatus {
   }
 }
 
-/** "5527999@s.whatsapp.net" → "5527999". Ignora grupos (@g.us). */
+/**
+ * "5527999@s.whatsapp.net" → "5527999". Ignora grupos (@g.us) e LIDs (@lid):
+ * o @lid é um identificador de privacidade do WhatsApp, NÃO um telefone real —
+ * nesses casos o número verdadeiro vem do `sender` do envelope do webhook.
+ */
 function jidToPhone(jid?: string): string | null {
-  if (!jid || jid.includes('@g.us')) return null;
+  if (!jid || jid.includes('@g.us') || jid.includes('@lid')) return null;
   const phone = jid.split('@')[0]?.replace(/\D/g, '');
   return phone || null;
 }
@@ -42,7 +46,12 @@ interface EvoMessage {
 
 export const webhookReceiverService = {
   /** Processa um evento da Evolution para a instância identificada por `key`. */
-  async handle(key: string, rawEvent: string, data: unknown): Promise<void> {
+  async handle(
+    key: string,
+    rawEvent: string,
+    data: unknown,
+    envelopeSender?: string,
+  ): Promise<void> {
     const inst = await repo.findInstanceByKey(key);
     if (!inst) {
       logger.warn({ key, rawEvent }, 'Webhook para instância desconhecida — ignorado');
@@ -74,7 +83,7 @@ export const webhookReceiverService = {
       case 'messages.upsert': {
         const msgs = this.normalizeMessages(data);
         for (const msg of msgs) {
-          await this.ingestInbound(inst, msg);
+          await this.ingestInbound(inst, msg, envelopeSender);
         }
         break;
       }
@@ -101,9 +110,12 @@ export const webhookReceiverService = {
     return [d as EvoMessage];
   },
 
-  async ingestInbound(inst: Instance, msg: EvoMessage): Promise<void> {
+  async ingestInbound(inst: Instance, msg: EvoMessage, envelopeSender?: string): Promise<void> {
     if (!msg?.key || msg.key.fromMe) return; // só mensagens recebidas
-    const phone = jidToPhone(msg.key.remoteJid);
+    if (msg.key.remoteJid?.includes('@g.us')) return; // ignora grupos
+    // Telefone real: do remoteJid quando for @s.whatsapp.net; senão (ex.: @lid)
+    // cai para o `sender` do envelope, que a Evolution preenche com o número real.
+    const phone = jidToPhone(msg.key.remoteJid) ?? jidToPhone(envelopeSender);
     if (!phone) return;
 
     const contactId = await repo.upsertContact(inst.tenantId, phone, msg.pushName);
