@@ -84,7 +84,7 @@
 |---|---|---|---|---|---|---|
 | T-019 | Modelo de dados de fluxos e FlowEngine | FlowEngine processa fluxo simples (texto → opção → resposta) corretamente nos testes. | Alta | XG | T-015 | ✅ (FlowEngine puro em flow-engine.service: `advance(graph,state,input)` percorre nós/arestas, interpola {{vars}}, trata MENU (espera input, casa por índice/rótulo/id), CONDITION, VARIABLE, DELAY/AI/WEBHOOK/ASSIGN_AGENT (ações), END. Modelo Flow/FlowSession já no Prisma. 8 testes — fluxo texto→opção→resposta + condição) |
 | T-020 | Implementar tipos de nós do fluxo | Cada tipo de nó testado individualmente. Fluxo com todos os tipos executa corretamente. | Alta | XG | T-019 | ⬜ |
-| T-021 | CRUD de fluxos e versionamento | Publicar fluxo cria versão imutável. Bot usa versão publicada. Rascunho não afeta bot ativo. | Alta | M | T-019 | ⬜ |
+| T-021 | CRUD de fluxos e versionamento | Publicar fluxo cria versão imutável. Bot usa versão publicada. Rascunho não afeta bot ativo. | Alta | M | T-019 | ✅ (módulo flows: list/create/get/update/delete + publish + duplicate, escopado por tenant. Publicado é imutável (update→409, duplique p/ editar); publish arquiva outros publicados do mesmo gatilho; `findActivePublished` p/ o bot. 5 testes de service) |
 | T-022 | Integração FlowEngine com webhook receiver | Bot responde ao trigger 'oi'. Avança pelo fluxo conforme input do usuário. | Alta | G | T-020, T-021 | ⬜ |
 
 ### ÉPICO 3.2 — Editor Visual Frontend
