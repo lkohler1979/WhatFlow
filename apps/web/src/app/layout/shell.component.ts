@@ -1,18 +1,22 @@
 import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { SidebarNavComponent } from '../shared/components/sidebar-nav/sidebar-nav.component';
+import { BreadcrumbsComponent } from '../shared/components/breadcrumbs/breadcrumbs.component';
 import { AuthService } from '@core/services/auth.service';
 
 @Component({
   selector: 'wf-shell',
   standalone: true,
-  imports: [RouterOutlet, SidebarNavComponent],
+  imports: [RouterOutlet, SidebarNavComponent, BreadcrumbsComponent],
   template: `
     <div class="app-shell">
       <wf-sidebar-nav />
       <div class="app-main">
         <header class="app-header">
-          <span class="brand">WhatFlow</span>
+          <div class="header-left">
+            <span class="brand">WhatFlow</span>
+            <wf-breadcrumbs />
+          </div>
           <div class="user-box">
             @if (auth.user(); as u) {
               <span class="user-name">{{ u.fullName }}</span>
@@ -47,11 +51,18 @@ import { AuthService } from '@core/services/auth.service';
         padding: 0 1.5rem;
         height: 56px;
         background: #fff;
-        border-bottom: 1px solid #e5e7eb;
+        border-bottom: 1px solid #dde3eb;
+      }
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
       }
       .brand {
         font-weight: 700;
         color: #1a5276;
+        padding-right: 1rem;
+        border-right: 1px solid #dde3eb;
       }
       .user-box {
         display: flex;
@@ -63,6 +74,7 @@ import { AuthService } from '@core/services/auth.service';
       }
       .user-role {
         font-size: 0.7rem;
+        font-weight: 600;
         padding: 0.15rem 0.5rem;
         border-radius: 999px;
         background: #ebf5fb;
@@ -75,9 +87,14 @@ import { AuthService } from '@core/services/auth.service';
         background: #fff;
         cursor: pointer;
         font-weight: 600;
+        transition:
+          background 0.15s,
+          border-color 0.15s;
       }
       .logout:hover {
         background: #f9fafb;
+        border-color: #1a5276;
+        color: #1a5276;
       }
       .app-content {
         flex: 1;

@@ -50,8 +50,8 @@
 ### ÉPICO 1.3 — Estrutura Base do Frontend
 | ID | Tarefa | Critérios de Aceite | Prio | Esforço | Deps | Status |
 |---|---|---|---|---|---|---|
-| T-009 | Scaffold Angular com design system | Storybook ou demo page mostra todos os componentes. Tema aplicado globalmente. | Alta | G | T-007 | 🟡 (app Angular bootstrapado: angular.json, main.ts, index.html, tsconfig.app; `ng build` passa. Falta design system/Storybook) |
-| T-010 | Roteamento e módulos lazy-loaded | Navegação funciona. Módulos carregam sob demanda. Breadcrumbs corretos. | Alta | M | T-009 | 🟡 (rotas lazy dos 8 módulos compilam em chunks separados; falta breadcrumbs) |
+| T-009 | Scaffold Angular com design system | Storybook ou demo page mostra todos os componentes. Tema aplicado globalmente. | Alta | G | T-007 | ✅ (design system enxuto: tokens em `_variables.scss`, classes utilitárias `.wf-*` e tema aplicado globalmente em `styles.scss`) |
+| T-010 | Roteamento e módulos lazy-loaded | Navegação funciona. Módulos carregam sob demanda. Breadcrumbs corretos. | Alta | M | T-009 | ✅ (rotas lazy dos 8 módulos em chunks separados + `BreadcrumbsComponent` no shell e item ativo destacado na sidebar) |
 | T-011 | Dashboard básico com métricas placeholder | Dashboard renderiza em desktop e mobile. Cards visíveis. Layout correto. | Média | P | T-010 | ✅ (4 KPI cards responsivos + header com usuário/papel e botão Sair; logout valida limpa token e volta ao /auth/login) |
 
 ---

@@ -1,32 +1,45 @@
 // ── WhatFlow Design Tokens ──
 
 // Cores principais
-$brand: #1d6fa4;
-$brand-dark: #145078;
-$brand-light: #ebf4fa;
+$brand: #1a5276; // primária do produto
+$brand-dark: #134060;
+$brand-light: #ebf5fb;
 $accent: #25d366; // WhatsApp green
 $warning: #e67e22;
-$danger: #c0392b;
-$success: #27ae60;
+$danger: #b42318;
+$danger-bg: #fee2e2;
+$danger-border: #f3b0aa;
+$success: #065f46;
+$success-bg: #d1fae5;
 
 // Neutros
 $bg: #f7f9fc;
 $surface: #ffffff;
 $border: #dde3eb;
+$border-strong: #d0d5dd;
 $muted: #8b97a8;
 $text: #1a2332;
 $text-sm: #4a5568;
 
 // Sombras
 $shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
-$shadow-md: 0 2px 8px rgba(0, 0, 0, 0.1);
-$shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.12);
+$shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
+$shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.08);
 
-// Espaçamento
+// Raios
 $radius-sm: 4px;
 $radius-md: 8px;
 $radius-lg: 12px;
 $radius-full: 9999px;
+
+// Espaçamento (escala 4px)
+$space-1: 0.25rem;
+$space-2: 0.5rem;
+$space-3: 0.75rem;
+$space-4: 1rem;
+$space-5: 1.25rem;
+$space-6: 1.5rem;
+$space-8: 2rem;
 
 // Tipografia
 $font-family: "Inter", "Segoe UI", system-ui, sans-serif;
@@ -35,9 +48,11 @@ $font-size-sm: 12px;
 $font-size-md: 14px;
 $font-size-lg: 16px;
 $font-size-xl: 20px;
+$font-weight-medium: 600;
+$font-weight-bold: 700;
 
 // Layout
 $sidebar-width: 58px;
-$topbar-height: 52px;
+$topbar-height: 56px;
 $inbox-list-width: 320px;
 $props-width: 280px;

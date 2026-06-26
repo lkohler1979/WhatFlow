@@ -1,0 +1,37 @@
+@use "styles/variables" as v;
+
+.breadcrumbs ol {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: v.$font-size-md;
+}
+
+.breadcrumbs li {
+  display: flex;
+  align-items: center;
+}
+
+.breadcrumbs a {
+  color: v.$text-sm;
+  text-decoration: none;
+  font-weight: v.$font-weight-medium;
+
+  &:hover {
+    color: v.$brand;
+    text-decoration: underline;
+  }
+}
+
+.breadcrumbs .sep {
+  margin: 0 v.$space-2;
+  color: v.$muted;
+}
+
+.breadcrumbs .current {
+  color: v.$text;
+  font-weight: v.$font-weight-bold;
+}

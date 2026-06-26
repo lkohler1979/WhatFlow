@@ -34,6 +34,116 @@ body {
 }
 .card {
   @include mixins.card;
+  padding: v.$space-4;
+}
+
+// ── Design system: classes compartilhadas ──
+
+// Botões
+.wf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: v.$space-2;
+  padding: v.$space-2 v.$space-4;
+  border: 1px solid v.$border-strong;
+  border-radius: v.$radius-md;
+  background: v.$surface;
+  color: v.$text;
+  font: inherit;
+  font-weight: v.$font-weight-medium;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
+
+  &:hover {
+    background: v.$bg;
+  }
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px v.$brand-light;
+    border-color: v.$brand;
+  }
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.wf-btn--primary {
+  background: v.$brand;
+  border-color: v.$brand;
+  color: #fff;
+
+  &:hover {
+    background: v.$brand-dark;
+    border-color: v.$brand-dark;
+  }
+}
+
+.wf-btn--danger {
+  color: v.$danger;
+  border-color: v.$danger-border;
+
+  &:hover {
+    background: v.$danger-bg;
+  }
+}
+
+// Inputs / textareas
+.wf-input {
+  padding: v.$space-2 v.$space-3;
+  border: 1px solid v.$border-strong;
+  border-radius: v.$radius-md;
+  background: v.$surface;
+  color: v.$text;
+  font: inherit;
+  width: 100%;
+
+  &::placeholder {
+    color: v.$muted;
+  }
+  &:focus {
+    outline: none;
+    border-color: v.$brand;
+    box-shadow: 0 0 0 3px v.$brand-light;
+  }
+}
+
+// Badges
+.wf-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: v.$font-size-sm;
+  font-weight: v.$font-weight-medium;
+  padding: v.$space-1 v.$space-2;
+  border-radius: v.$radius-full;
+  background: v.$brand-light;
+  color: v.$brand;
+
+  &.wf-badge--success {
+    background: v.$success-bg;
+    color: v.$success;
+  }
+  &.wf-badge--warning {
+    background: #fef3c7;
+    color: #92400e;
+  }
+  &.wf-badge--danger {
+    background: v.$danger-bg;
+    color: #991b1b;
+  }
+}
+
+// Texto auxiliar
+.wf-muted {
+  color: v.$muted;
+}
+.wf-error {
+  color: v.$danger;
+  font-size: v.$font-size-md;
 }
 
 // Animação de loading

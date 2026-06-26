@@ -21,8 +21,12 @@ const STATUS_LABEL: Record<InstanceStatus, string> = {
       <header class="page-head">
         <h1>Instâncias WhatsApp</h1>
         <form class="create" [formGroup]="form" (ngSubmit)="create()">
-          <input formControlName="name" placeholder="Nome da instância" />
-          <button type="submit" [disabled]="form.invalid || creating()">
+          <input class="wf-input" formControlName="name" placeholder="Nome da instância" />
+          <button
+            class="wf-btn wf-btn--primary"
+            type="submit"
+            [disabled]="form.invalid || creating()"
+          >
             {{ creating() ? 'Criando...' : 'Nova instância' }}
           </button>
         </form>
@@ -46,10 +50,10 @@ const STATUS_LABEL: Record<InstanceStatus, string> = {
               </div>
               <p class="phone">{{ inst.phone || 'sem número' }}</p>
               <div class="actions">
-                <button (click)="openQr(inst)">QR Code</button>
-                <button (click)="openSend(inst)">Enviar</button>
-                <button (click)="refresh(inst)">Atualizar</button>
-                <button class="danger" (click)="remove(inst)">Excluir</button>
+                <button class="wf-btn" (click)="openQr(inst)">QR Code</button>
+                <button class="wf-btn" (click)="openSend(inst)">Enviar</button>
+                <button class="wf-btn" (click)="refresh(inst)">Atualizar</button>
+                <button class="wf-btn wf-btn--danger" (click)="remove(inst)">Excluir</button>
               </div>
             </article>
           }
@@ -70,8 +74,8 @@ const STATUS_LABEL: Record<InstanceStatus, string> = {
               Status: <strong>{{ label(qrStatus()) }}</strong>
             </p>
             <div class="actions center">
-              <button (click)="reloadQr()">Recarregar QR</button>
-              <button class="danger" (click)="closeQr()">Fechar</button>
+              <button class="wf-btn" (click)="reloadQr()">Recarregar QR</button>
+              <button class="wf-btn wf-btn--danger" (click)="closeQr()">Fechar</button>
             </div>
           </div>
         </div>
@@ -81,8 +85,17 @@ const STATUS_LABEL: Record<InstanceStatus, string> = {
           <div class="modal" (click)="$event.stopPropagation()">
             <h2>Enviar mensagem — "{{ sendFor()?.name }}"</h2>
             <form [formGroup]="sendForm" (ngSubmit)="submitSend()">
-              <input formControlName="number" placeholder="Número (ex.: 5527999887766)" />
-              <textarea formControlName="text" rows="3" placeholder="Mensagem"></textarea>
+              <input
+                class="wf-input"
+                formControlName="number"
+                placeholder="Número (ex.: 5527999887766)"
+              />
+              <textarea
+                class="wf-input"
+                formControlName="text"
+                rows="3"
+                placeholder="Mensagem"
+              ></textarea>
               @if (sendErr()) {
                 <p class="error">{{ sendErr() }}</p>
               }
@@ -90,10 +103,16 @@ const STATUS_LABEL: Record<InstanceStatus, string> = {
                 <p class="ok">Mensagem enviada ✓</p>
               }
               <div class="actions center">
-                <button type="submit" [disabled]="sendForm.invalid || sending()">
+                <button
+                  class="wf-btn wf-btn--primary"
+                  type="submit"
+                  [disabled]="sendForm.invalid || sending()"
+                >
                   {{ sending() ? 'Enviando...' : 'Enviar' }}
                 </button>
-                <button type="button" class="danger" (click)="closeSend()">Fechar</button>
+                <button type="button" class="wf-btn wf-btn--danger" (click)="closeSend()">
+                  Fechar
+                </button>
               </div>
             </form>
           </div>
@@ -121,31 +140,9 @@ const STATUS_LABEL: Record<InstanceStatus, string> = {
         display: flex;
         gap: 0.5rem;
       }
-      .create input {
-        padding: 0.55rem 0.7rem;
-        border: 1px solid #d0d5dd;
-        border-radius: 8px;
-      }
-      button {
-        padding: 0.5rem 0.9rem;
-        border: 1px solid #d0d5dd;
-        border-radius: 8px;
-        background: #fff;
-        cursor: pointer;
-        font-weight: 600;
-      }
-      .create button {
-        background: #1a5276;
-        color: #fff;
-        border-color: #1a5276;
-      }
-      button:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
-      .danger {
-        color: #b42318;
-        border-color: #f3b0aa;
+      .create .wf-input {
+        width: auto;
+        min-width: 220px;
       }
       .grid {
         display: grid;
