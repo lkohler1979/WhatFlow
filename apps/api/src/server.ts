@@ -1,19 +1,24 @@
 import { createApp } from './app.js';
 import { config } from '@core/config.js';
 import { logger } from '@core/logger.js';
+import { startQueues, stopQueues } from '@queues/index.js';
 
 const { httpServer } = createApp();
 
 httpServer.listen(config.PORT, () => {
   logger.info(`🚀 WhatFlow API → http://localhost:${config.PORT}${config.API_PREFIX}`);
   logger.info(`🌍 Ambiente: ${config.NODE_ENV}`);
+  // Sobe os workers BullMQ junto com o HTTP server (mesmo processo).
+  startQueues();
 });
 
 const shutdown = (signal: string) => {
   logger.info(`Sinal ${signal} recebido — encerrando gracefully...`);
   httpServer.close(() => {
-    logger.info('✅ Servidor encerrado.');
-    process.exit(0);
+    void stopQueues().finally(() => {
+      logger.info('✅ Servidor encerrado.');
+      process.exit(0);
+    });
   });
   setTimeout(() => {
     logger.error('⛔ Forçando saída');
