@@ -2,15 +2,16 @@ import type { Worker } from 'bullmq';
 import { logger } from '@core/logger.js';
 import { queues } from './queue.registry.js';
 import { exampleWorker } from './workers/example.worker.js';
+import { campaignWorker } from './workers/campaign.worker.js';
 
 export * from './queue.registry.js';
 export * from './queue.factory.js';
 
 /**
- * Workers ativos. À medida que T-032 (campaign) e T-033 (webhook-delivery)
- * implementarem seus processors, registre os workers aqui.
+ * Workers ativos. O worker de campaign (T-033) faz o disparo com anti-ban.
+ * O de webhook-delivery chega em tarefa posterior.
  */
-const workers: Worker[] = [exampleWorker];
+const workers: Worker[] = [exampleWorker, campaignWorker];
 
 /**
  * Sobe a infra de filas junto com o servidor. A connection do ioredis usa

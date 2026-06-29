@@ -1,5 +1,12 @@
 import { prisma } from '@core/prisma.js';
-import type { Campaign, CampaignStatus, Contact, Prisma } from '@prisma/client';
+import type {
+  Campaign,
+  CampaignContact,
+  CampaignContactStatus,
+  CampaignStatus,
+  Contact,
+  Prisma,
+} from '@prisma/client';
 
 /** Acesso a dados de campanhas — sempre escopado por tenant (Prisma bypassa RLS). */
 export const campaignsRepository = {
@@ -85,5 +92,123 @@ export const campaignsRepository = {
   async remove(id: string, tenantId: string): Promise<number> {
     const res = await prisma.campaign.deleteMany({ where: { id, tenantId } });
     return res.count;
+  },
+
+  // ----------------------------------------------------------------
+  // Suporte ao processor de disparo (T-033). O job traz tenantId, então
+  // mantemos tenant-scope nas leituras/escritas da campanha.
+  // ----------------------------------------------------------------
+
+  /**
+   * Carrega o `evolutionKey` da instância da campanha (tenant-scoped).
+   * Retorna null se a campanha/instância não existir no tenant.
+   */
+  async getEvolutionKeyForCampaign(campaignId: string, tenantId: string): Promise<string | null> {
+    const campaign = await prisma.campaign.findFirst({
+      where: { id: campaignId, tenantId },
+      select: { instance: { select: { evolutionKey: true } } },
+    });
+    return campaign?.instance.evolutionKey ?? null;
+  },
+
+  /** Status atual da campanha — usado para detectar PAUSED/CANCELLED durante o loop. */
+  async getStatus(campaignId: string, tenantId: string): Promise<CampaignStatus | null> {
+    const c = await prisma.campaign.findFirst({
+      where: { id: campaignId, tenantId },
+      select: { status: true },
+    });
+    return c?.status ?? null;
+  },
+
+  /** Contatos ainda PENDING da campanha, em ordem estável de criação. */
+  pendingContacts(
+    campaignId: string,
+  ): Promise<Pick<CampaignContact, 'id' | 'phone' | 'contactId'>[]> {
+    return prisma.campaignContact.findMany({
+      where: { campaignId, status: 'PENDING' },
+      orderBy: { phone: 'asc' },
+      select: { id: true, phone: true, contactId: true },
+    });
+  },
+
+  /** Atualiza o status (e timestamps/erro) de um CampaignContact. */
+  async updateContactStatus(
+    campaignContactId: string,
+    status: CampaignContactStatus,
+    extra: { externalId?: string | null; errorMessage?: string | null } = {},
+  ): Promise<void> {
+    const now = new Date();
+    await prisma.campaignContact.update({
+      where: { id: campaignContactId },
+      data: {
+        status,
+        ...(status === 'SENT' ? { sentAt: now } : {}),
+        ...(status === 'FAILED' ? { failedAt: now } : {}),
+        ...(extra.externalId !== undefined ? { externalId: extra.externalId } : {}),
+        ...(extra.errorMessage !== undefined ? { errorMessage: extra.errorMessage } : {}),
+      },
+    });
+  },
+
+  /** Incrementa contadores agregados da campanha (sent/failed). */
+  async incrementCounters(
+    campaignId: string,
+    tenantId: string,
+    delta: { sent?: number; failed?: number },
+  ): Promise<void> {
+    await prisma.campaign.updateMany({
+      where: { id: campaignId, tenantId },
+      data: {
+        ...(delta.sent ? { sentCount: { increment: delta.sent } } : {}),
+        ...(delta.failed ? { failedCount: { increment: delta.failed } } : {}),
+      },
+    });
+  },
+
+  /**
+   * Persiste uma Message OUTBOUND para o envio da campanha (best-effort).
+   * Resolve/cria a conversa do contato na instância da campanha, reusando o
+   * mesmo padrão do webhook-receiver (uma conversa por contato+instância).
+   */
+  async recordOutboundMessage(input: {
+    tenantId: string;
+    instanceId: string;
+    contactId: string;
+    content: string | null;
+    type?: Prisma.MessageCreateInput['type'];
+    mediaUrl?: string | null;
+    mediaCaption?: string | null;
+    externalId?: string | null;
+  }): Promise<void> {
+    const existing = await prisma.conversation.findFirst({
+      where: { tenantId: input.tenantId, instanceId: input.instanceId, contactId: input.contactId },
+      select: { id: true },
+    });
+    const conversationId =
+      existing?.id ??
+      (
+        await prisma.conversation.create({
+          data: {
+            tenantId: input.tenantId,
+            instanceId: input.instanceId,
+            contactId: input.contactId,
+          },
+          select: { id: true },
+        })
+      ).id;
+
+    await prisma.message.create({
+      data: {
+        conversationId,
+        externalId: input.externalId ?? undefined,
+        direction: 'OUTBOUND',
+        type: input.type ?? 'TEXT',
+        content: input.content,
+        mediaUrl: input.mediaUrl ?? undefined,
+        mediaCaption: input.mediaCaption ?? undefined,
+        status: 'SENT',
+        timestamp: new Date(),
+      },
+    });
   },
 };
