@@ -40,6 +40,12 @@
 | P-06 | **`forgot-password` real** | Hoje é stub. Implementar reset via Supabase Auth (`resetPasswordForEmail`) quando SMTP estiver configurado. |
 | P-07 | **Dashboard com métricas reais** | Cards usam placeholder (`—`). Plugar nos endpoints de analytics (Sprint 6). |
 
+## 🎨 Sprint 3 — Flow Builder (verificação visual)
+
+| # | Item | Detalhe |
+|---|------|---------|
+| P-19 | **Validação visual do Flow Builder no browser (T-023/T-024/T-025)** | Os agentes do frontend usaram o **build do Angular (strictTemplates)** como gate, não verificação visual — a UI não foi clicada de ponta a ponta. Falta validar no navegador: criar fluxo → arrastar nós da paleta → mover cards → conectar saída→entrada (incl. MENU por opção e CONDITION true/false) → editar propriedades por tipo → inserir variável `{{}}` + ver preview → **salvar → reabrir e conferir que o layout persiste** → publicar (e o 409→Duplicar). Docker está estável; dá para usar a ferramenta de preview com backend autenticado (`/v1/flows`). Login: luizarlindo79@gmail.com / 123456. |
+
 ## 🧪 Qualidade / CI (T-050)
 
 | # | Item | Detalhe |
