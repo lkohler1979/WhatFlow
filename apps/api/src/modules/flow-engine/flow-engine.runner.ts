@@ -1,9 +1,11 @@
 import { logger } from '@core/logger.js';
-import { advance } from './flow-engine.service.js';
+import { advance, interpolate } from './flow-engine.service.js';
 import { flowEngineRepository as repo } from './flow-engine.repository.js';
 import { flowsRepository } from '@modules/flows/flows.repository.js';
 import { evolutionApiService } from '@integrations/evolution-api/evolution-api.service.js';
-import type { FlowGraph, FlowNode, FlowEdge } from './flow-engine.types.js';
+import { aiService } from '@integrations/ai/ai.service.js';
+import type { AiMessage } from '@integrations/ai/ai.interface.js';
+import type { FlowGraph, FlowNode, FlowEdge, EngineResult } from './flow-engine.types.js';
 import type { Flow, Prisma } from '@prisma/client';
 
 /** Decide se o gatilho do fluxo casa com o texto recebido. */
@@ -25,6 +27,88 @@ function toGraph(flow: Flow): FlowGraph {
     nodes: (flow.nodesJson ?? []) as unknown as FlowNode[],
     edges: (flow.edgesJson ?? []) as unknown as FlowEdge[],
   };
+}
+
+/** Máximo de mensagens do histórico incluídas no contexto da IA. */
+const AI_HISTORY_LIMIT = 10;
+
+/**
+ * Processa um nó de IA (action `ai`): monta o contexto (system = prompt do nó +
+ * histórico da conversa + pergunta atual), chama o provedor e envia/persiste a
+ * resposta. Best-effort: erros do provedor são logados e NÃO propagados.
+ * Devolve o texto gerado (ou null) p/ guardar em variável da sessão.
+ */
+async function handleAiAction(
+  ctx: RunBotCtx,
+  graph: FlowGraph,
+  result: EngineResult,
+  action: { prompt?: string; nodeId: string },
+): Promise<string | null> {
+  const node = graph.nodes.find(n => n.id === action.nodeId);
+  const vars = result.state.variables;
+  const systemPrompt = interpolate(action.prompt ?? node?.data?.prompt ?? '', vars).trim();
+
+  // Histórico cronológico → AiMessage[] (INBOUND→user, OUTBOUND→assistant).
+  const history = await repo.loadHistory(ctx.conversationId, AI_HISTORY_LIMIT).catch(err => {
+    logger.warn({ err, conversationId: ctx.conversationId }, 'Falha ao carregar histórico p/ IA');
+    return [] as { direction: 'INBOUND' | 'OUTBOUND'; content: string }[];
+  });
+
+  const messages: AiMessage[] = [];
+  if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
+  for (const h of history) {
+    messages.push({ role: h.direction === 'INBOUND' ? 'user' : 'assistant', content: h.content });
+  }
+  // Garante que a pergunta atual do usuário esteja presente (se ainda não está no fim do histórico).
+  const last = messages[messages.length - 1];
+  const current = (ctx.text ?? '').trim();
+  if (current && !(last && last.role === 'user' && last.content.trim() === current)) {
+    messages.push({ role: 'user', content: current });
+  }
+  if (messages.length === 0) return null;
+
+  const data = node?.data as
+    | { model?: string; temperature?: number; fallback?: string }
+    | undefined;
+
+  let aiText: string;
+  try {
+    const res = await aiService.generate(messages, {
+      ...(data?.model ? { model: data.model } : {}),
+      ...(typeof data?.temperature === 'number' ? { temperature: data.temperature } : {}),
+    });
+    aiText = res.content?.trim() ?? '';
+    if (!aiText) {
+      logger.warn(
+        { conversationId: ctx.conversationId, nodeId: action.nodeId },
+        'IA retornou vazio',
+      );
+      return null;
+    }
+  } catch (err) {
+    logger.warn(
+      { err, conversationId: ctx.conversationId, nodeId: action.nodeId },
+      'Falha ao gerar resposta de IA (best-effort)',
+    );
+    // Fallback configurável: envia uma mensagem fixa se o nó definir `data.fallback`.
+    const fallback = data?.fallback ? interpolate(data.fallback, vars).trim() : '';
+    if (fallback) {
+      await sendAndPersist(ctx, fallback);
+    }
+    return null;
+  }
+
+  await sendAndPersist(ctx, aiText);
+  return aiText;
+}
+
+/** Envia uma mensagem de texto e persiste OUTBOUND + atualiza a conversa. */
+async function sendAndPersist(ctx: RunBotCtx, text: string): Promise<void> {
+  await evolutionApiService
+    .sendText(ctx.evolutionKey, { number: ctx.replyTo, text })
+    .catch(err => logger.warn({ err }, 'Falha ao enviar mensagem do fluxo'));
+  await repo.createOutboundMessage(ctx.conversationId, text);
+  await repo.touchConversation(ctx.conversationId, text);
 }
 
 interface RunBotCtx {
@@ -73,22 +157,26 @@ export const flowRunner = {
         };
       }
 
-      const result = advance(toGraph(flow), state, ctx.text);
+      const graph = toGraph(flow);
+      const result = advance(graph, state, ctx.text);
 
       // Envia e persiste as mensagens de saída (apenas texto por enquanto).
+      // MVP: as mensagens do `advance` saem primeiro, depois as respostas de IA.
+      // A ordem ideal (intercalar IA no meio do fluxo) exigiria suspender/retomar
+      // o engine no nó AI — fora do escopo deste MVP.
       for (const m of result.messages) {
         if (m.type !== 'text' || !m.text) continue;
-        await evolutionApiService
-          .sendText(ctx.evolutionKey, { number: ctx.replyTo, text: m.text })
-          .catch(err => logger.warn({ err }, 'Falha ao enviar mensagem do fluxo'));
-        await repo.createOutboundMessage(ctx.conversationId, m.text);
-        await repo.touchConversation(ctx.conversationId, m.text);
+        await sendAndPersist(ctx, m.text);
       }
 
-      // Ações: por ora tratamos assign_agent (desliga o bot p/ atendimento humano).
+      // Ações: assign_agent (desliga o bot) e ai (gera resposta contextual).
       for (const a of result.actions) {
         if (a.kind === 'assign_agent') {
           await repo.setBotActive(ctx.conversationId, false);
+        } else if (a.kind === 'ai') {
+          const aiText = await handleAiAction(ctx, graph, result, a);
+          // Guarda a resposta da IA p/ uso posterior no fluxo (ex.: {{resposta_ia}}).
+          if (aiText) result.state.variables.resposta_ia = aiText;
         }
       }
 

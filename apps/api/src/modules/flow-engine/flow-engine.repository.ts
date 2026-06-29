@@ -51,6 +51,26 @@ export const flowEngineRepository = {
     });
   },
 
+  /**
+   * Últimas `limit` mensagens da conversa (ordem cronológica asc) p/ contexto da IA.
+   * Retorna só direção + conteúdo (texto). Mensagens sem conteúdo são ignoradas.
+   */
+  async loadHistory(
+    conversationId: string,
+    limit = 10,
+  ): Promise<{ direction: 'INBOUND' | 'OUTBOUND'; content: string }[]> {
+    const rows = await prisma.message.findMany({
+      where: { conversationId, content: { not: null } },
+      orderBy: { timestamp: 'desc' },
+      take: limit,
+      select: { direction: true, content: true },
+    });
+    return rows
+      .reverse()
+      .filter((r): r is { direction: 'INBOUND' | 'OUTBOUND'; content: string } => !!r.content)
+      .map(r => ({ direction: r.direction, content: r.content }));
+  },
+
   createOutboundMessage(conversationId: string, content: string): Promise<{ id: string }> {
     return prisma.message.create({
       data: {
