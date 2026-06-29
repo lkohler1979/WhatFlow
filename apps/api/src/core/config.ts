@@ -21,6 +21,10 @@ const envSchema = z.object({
   // Ex.: http://api:3000/v1 (no compose) ou a URL pública/túnel. Vazio = não registra webhook.
   WEBHOOK_BASE_URL: z.string().default(''),
 
+  // Provedor de IA padrão (switch transparente). Pode ser sobrescrito por chamada.
+  AI_PROVIDER: z.enum(['groq', 'ollama']).default('groq'),
+  // Timeout (ms) aplicado às chamadas HTTP de IA. Override por chamada possível.
+  AI_TIMEOUT_MS: z.coerce.number().default(30_000),
   GROQ_API_KEY: z.string().default(''),
   GROQ_MODEL: z.string().default('llama-3.1-70b-versatile'),
   OLLAMA_BASE_URL: z.string().default('http://localhost:11434'),

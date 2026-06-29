@@ -103,7 +103,7 @@
 ### ÉPICO 4.1 — Integração com IA (Groq / Ollama)
 | ID | Tarefa | Critérios de Aceite | Prio | Esforço | Deps | Status |
 |---|---|---|---|---|---|---|
-| T-027 | AiService com suporte a Groq e Ollama | Ambos adaptadores geram resposta. Switch de provedor transparente. Timeout configurável. | Alta | G | T-004 | ⬜ |
+| T-027 | AiService com suporte a Groq e Ollama | Ambos adaptadores geram resposta. Switch de provedor transparente. Timeout configurável. | Alta | G | T-004 | ✅ (`integrations/ai`: `aiService.generate(messages, opts?)` com adaptadores Groq (OpenAI-compat `/chat/completions`) e Ollama (`/api/chat`), switch por `opts.provider`/`AI_PROVIDER` (default groq), timeout `AI_TIMEOUT_MS` (override por chamada), modelo por env, `withRetry` (rede/5xx, não 4xx; 429→AI_RATE_LIMIT). 11 testes mockados (110 no total)) |
 | T-028 | Nó de IA no FlowEngine | Bot com nó de IA responde perguntas abertas de forma contextual. Histórico incluído. | Alta | G | T-027, T-020 | ⬜ |
 | T-029 | Configuração de IA por tenant | Configurações salvas. Botão 'Testar' chama IA e exibe resposta de exemplo. | Média | M | T-027 | ⬜ |
 | T-030 | Rate limiting e cache de respostas IA | Limite de req/min respeitado. Cache reduz chamadas redundantes. Consumo visível. | Média | M | T-027 | ⬜ |
@@ -111,7 +111,7 @@
 ### ÉPICO 4.2 — Campanhas e Disparos em Massa
 | ID | Tarefa | Critérios de Aceite | Prio | Esforço | Deps | Status |
 |---|---|---|---|---|---|---|
-| T-031 | Setup BullMQ + Redis para filas | Jobs adicionados à fila são processados. Retry automático em falha. Bull-Board acessível. | Alta | M | T-004 | ⬜ |
+| T-031 | Setup BullMQ + Redis para filas | Jobs adicionados à fila são processados. Retry automático em falha. Bull-Board acessível. | Alta | M | T-004 | ✅ (`queues/`: `queue.factory` (connection ioredis reaproveitada + defaults retry attempts:3/backoff exp 2s + removeOn*), `createQueue`/`createWorker`/`addJob`; filas `example`/`campaign`/`webhook-delivery`; workers sobem no `server.ts` (startQueues) com shutdown gracioso (stopQueues). Validado no Docker: job processado, retry 3x, Bull-Board em :3001 lista as 3 filas. 5 testes mockados) |
 | T-032 | CRUD de campanhas (backend) | Campanha criada, iniciada, pausada, cancelada. Status atualizado corretamente. | Alta | G | T-031 | ⬜ |
 | T-033 | Processador de campanha com anti-ban | Campanha de 50 contatos enviada com delays. Progresso visível em tempo real. | Alta | G | T-032 | ⬜ |
 | T-034 | Tela de campanhas no frontend | Usuário cria e dispara campanha pela UI. Progresso atualiza sem refresh. | Alta | G | T-032, T-033 | ⬜ |

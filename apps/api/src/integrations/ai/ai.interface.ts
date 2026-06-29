@@ -3,12 +3,31 @@ export interface AiMessage {
   content: string;
 }
 
+/** Uso de tokens reportado pelo provedor (quando disponível). */
+export interface AiUsage {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+}
+
 export interface AiResponse {
   content: string;
   tokens: number;
   latencyMs: number;
+  usage?: AiUsage;
+}
+
+/** Opções de geração comuns a todos os adaptadores. */
+export interface AiChatOptions {
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
+  /** Timeout (ms) específico desta chamada — sobrescreve o default do config. */
+  timeoutMs?: number;
 }
 
 export interface AiAdapter {
-  chat(messages: AiMessage[], maxTokens?: number, temperature?: number): Promise<AiResponse>;
+  /** Nome do provedor, p/ logs e diagnóstico. */
+  readonly provider: string;
+  chat(messages: AiMessage[], opts?: AiChatOptions): Promise<AiResponse>;
 }
