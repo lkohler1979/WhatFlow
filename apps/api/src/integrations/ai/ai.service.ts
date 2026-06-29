@@ -4,6 +4,17 @@ import { logger } from '@core/logger.js';
 import type { AiAdapter, AiChatOptions, AiMessage, AiResponse } from './ai.interface.js';
 import { groqAdapter } from './groq.adapter.js';
 import { ollamaAdapter } from './ollama.adapter.js';
+import {
+  cacheGet,
+  cacheKey,
+  cacheSet,
+  enforceRateLimit,
+  getUsage,
+  recordHit,
+  recordMiss,
+  resetUsage,
+  type AiUsageStats,
+} from './ai.cache.js';
 
 export type AiProviderName = 'groq' | 'ollama';
 
@@ -16,6 +27,8 @@ const ADAPTERS: Record<AiProviderName, AiAdapter> = {
 export interface GenerateOptions extends AiChatOptions {
   /** Sobrescreve o provedor default (config.AI_PROVIDER) apenas nesta chamada. */
   provider?: AiProviderName;
+  /** Tenant para isolar a cota de rate limit (opcional). */
+  tenantId?: string;
 }
 
 function resolveAdapter(provider?: AiProviderName): AiAdapter {
@@ -38,14 +51,67 @@ export const aiService = {
     return config.AI_PROVIDER as AiProviderName;
   },
 
-  /** Gera uma resposta a partir do histórico de mensagens. */
+  /**
+   * Gera uma resposta a partir do histórico de mensagens.
+   *
+   * Fluxo interno (assinatura pública inalterada): cache-check → rate-limit-check →
+   * adapter → grava cache + contadores. Hit de cache retorna sem ir ao provedor e
+   * sem consumir cota de rate limit.
+   */
   async generate(messages: AiMessage[], opts: GenerateOptions = {}): Promise<AiResponse> {
-    const { provider, ...chatOpts } = opts;
+    const { provider, tenantId, ...chatOpts } = opts;
     const adapter = resolveAdapter(provider);
+    const model = chatOpts.model ?? defaultModel(adapter.provider as AiProviderName);
+
+    const key = cacheKey({
+      provider: adapter.provider,
+      model,
+      messages,
+      temperature: chatOpts.temperature,
+      maxTokens: chatOpts.maxTokens,
+    });
+
+    const cached = cacheGet(key);
+    if (cached) {
+      recordHit();
+      logger.info(
+        { provider: adapter.provider, model, cache: 'hit', usage: getUsage() },
+        'AiService: resposta do cache',
+      );
+      return cached;
+    }
+
+    // Apenas cache miss consome cota. Escopo por provedor (e por tenant, se informado).
+    const scope = tenantId ? `${adapter.provider}:${tenantId}` : adapter.provider;
+    enforceRateLimit(scope);
+
     logger.info(
-      { provider: adapter.provider, model: chatOpts.model, messages: messages.length },
+      { provider: adapter.provider, model, messages: messages.length, cache: 'miss' },
       'AiService: gerando resposta',
     );
-    return adapter.chat(messages, chatOpts);
+
+    const res = await adapter.chat(messages, chatOpts);
+    cacheSet(key, res);
+    recordMiss(res.tokens);
+    logger.info(
+      { provider: adapter.provider, model, tokens: res.tokens, usage: getUsage() },
+      'AiService: consumo de IA',
+    );
+    return res;
+  },
+
+  /** Snapshot de consumo (chamadas, hits de cache, tokens, contagem no minuto atual). */
+  getUsage(): AiUsageStats {
+    return getUsage();
+  },
+
+  /** Zera cache, buckets de rate limit e contadores (testes/diagnóstico). */
+  resetUsage(): void {
+    resetUsage();
   },
 };
+
+/** Modelo default por provedor (entra no hash do cache de forma estável). */
+function defaultModel(provider: AiProviderName): string {
+  return provider === 'ollama' ? config.OLLAMA_DEFAULT_MODEL : config.GROQ_MODEL;
+}

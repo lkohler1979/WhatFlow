@@ -25,6 +25,15 @@ const envSchema = z.object({
   AI_PROVIDER: z.enum(['groq', 'ollama']).default('groq'),
   // Timeout (ms) aplicado às chamadas HTTP de IA. Override por chamada possível.
   AI_TIMEOUT_MS: z.coerce.number().default(30_000),
+  // Rate limit de IA: máx. de chamadas (que vão ao provedor) por minuto, por provedor.
+  // Default 30 = free tier da Groq (30 req/min). Hits de cache NÃO contam.
+  AI_RATE_LIMIT_PER_MIN: z.coerce.number().default(30),
+  // Cache de respostas de IA: liga/desliga e TTL (ms).
+  AI_CACHE_ENABLED: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform(v => v === 'true'),
+  AI_CACHE_TTL_MS: z.coerce.number().default(300_000),
   GROQ_API_KEY: z.string().default(''),
   GROQ_MODEL: z.string().default('llama-3.1-70b-versatile'),
   OLLAMA_BASE_URL: z.string().default('http://localhost:11434'),
