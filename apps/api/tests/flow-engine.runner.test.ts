@@ -65,6 +65,7 @@ const ctx = (over: Record<string, unknown> = {}) => ({
   evolutionKey: 'key1',
   conversationId: 'conv1',
   botActive: true,
+  replyTo: '5527999',
   contactPhone: '5527999',
   text: 'oi',
   ...over,
@@ -131,5 +132,13 @@ describe('flowRunner.runBot', () => {
     await flowRunner.runBot(ctx({ text: 'qualquer coisa' }));
     expect(evo.sendText).not.toHaveBeenCalled();
     expect(engine.createSession).not.toHaveBeenCalled();
+  });
+
+  it('responde para o replyTo (jid @lid) e não para o número do contato', async () => {
+    engine.findActiveSession.mockResolvedValue(null);
+    flows.findActivePublished.mockResolvedValue([publishedFlow()]);
+    const lid = '261967335915753@lid';
+    await flowRunner.runBot(ctx({ replyTo: lid, contactPhone: '261967335915753' }));
+    expect(evo.sendText).toHaveBeenNthCalledWith(1, 'key1', { number: lid, text: 'Olá!' });
   });
 });

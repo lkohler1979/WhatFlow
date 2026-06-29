@@ -17,15 +17,22 @@ function mapState(raw?: string): InstanceStatus {
   }
 }
 
-/**
- * "5527999@s.whatsapp.net" → "5527999". Ignora grupos (@g.us) e LIDs (@lid):
- * o @lid é um identificador de privacidade do WhatsApp, NÃO um telefone real —
- * nesses casos o número verdadeiro vem do `sender` do envelope do webhook.
- */
+/** Extrai os dígitos identificadores de um jid. Null para grupos (@g.us). */
 function jidToPhone(jid?: string): string | null {
-  if (!jid || jid.includes('@g.us') || jid.includes('@lid')) return null;
+  if (!jid || jid.includes('@g.us')) return null;
   const phone = jid.split('@')[0]?.replace(/\D/g, '');
   return phone || null;
+}
+
+/**
+ * Alvo de resposta. O WhatsApp moderno mascara o remetente com um LID
+ * (`<id>@lid`) em vez do telefone — para responder precisamos mandar de volta
+ * para o **jid original**, não para um número reconstruído. Em @lid devolvemos o
+ * jid completo (a Evolution v2.3.7+ aceita enviar para @lid); em @s.whatsapp.net
+ * basta o número.
+ */
+function replyTarget(remoteJid: string, phone: string): string {
+  return remoteJid.includes('@lid') ? remoteJid : phone;
 }
 
 function extractText(message: unknown): string | null {
@@ -46,12 +53,7 @@ interface EvoMessage {
 
 export const webhookReceiverService = {
   /** Processa um evento da Evolution para a instância identificada por `key`. */
-  async handle(
-    key: string,
-    rawEvent: string,
-    data: unknown,
-    envelopeSender?: string,
-  ): Promise<void> {
+  async handle(key: string, rawEvent: string, data: unknown): Promise<void> {
     const inst = await repo.findInstanceByKey(key);
     if (!inst) {
       logger.warn({ key, rawEvent }, 'Webhook para instância desconhecida — ignorado');
@@ -83,7 +85,7 @@ export const webhookReceiverService = {
       case 'messages.upsert': {
         const msgs = this.normalizeMessages(data);
         for (const msg of msgs) {
-          await this.ingestInbound(inst, msg, envelopeSender);
+          await this.ingestInbound(inst, msg);
         }
         break;
       }
@@ -110,13 +112,11 @@ export const webhookReceiverService = {
     return [d as EvoMessage];
   },
 
-  async ingestInbound(inst: Instance, msg: EvoMessage, envelopeSender?: string): Promise<void> {
+  async ingestInbound(inst: Instance, msg: EvoMessage): Promise<void> {
     if (!msg?.key || msg.key.fromMe) return; // só mensagens recebidas
-    if (msg.key.remoteJid?.includes('@g.us')) return; // ignora grupos
-    // Telefone real: do remoteJid quando for @s.whatsapp.net; senão (ex.: @lid)
-    // cai para o `sender` do envelope, que a Evolution preenche com o número real.
-    const phone = jidToPhone(msg.key.remoteJid) ?? jidToPhone(envelopeSender);
-    if (!phone) return;
+    const jid = msg.key.remoteJid;
+    const phone = jidToPhone(jid);
+    if (!jid || !phone) return; // ignora grupos / jids inválidos
 
     const contactId = await repo.upsertContact(inst.tenantId, phone, msg.pushName);
     const conversation = await repo.findOrCreateConversation(inst.tenantId, inst.id, contactId);
@@ -141,6 +141,7 @@ export const webhookReceiverService = {
       evolutionKey: inst.evolutionKey,
       conversationId: conversation.id,
       botActive: conversation.botActive,
+      replyTo: replyTarget(jid, phone),
       contactPhone: phone,
       text: content ?? '',
     });

@@ -33,6 +33,9 @@ interface RunBotCtx {
   evolutionKey: string;
   conversationId: string;
   botActive: boolean;
+  /** Destino do envio (jid completo p/ @lid ou número p/ @s.whatsapp.net). */
+  replyTo: string;
+  /** Número do contato, usado na variável `numero` do fluxo. */
   contactPhone: string;
   text: string;
 }
@@ -76,7 +79,7 @@ export const flowRunner = {
       for (const m of result.messages) {
         if (m.type !== 'text' || !m.text) continue;
         await evolutionApiService
-          .sendText(ctx.evolutionKey, { number: ctx.contactPhone, text: m.text })
+          .sendText(ctx.evolutionKey, { number: ctx.replyTo, text: m.text })
           .catch(err => logger.warn({ err }, 'Falha ao enviar mensagem do fluxo'));
         await repo.createOutboundMessage(ctx.conversationId, m.text);
         await repo.touchConversation(ctx.conversationId, m.text);

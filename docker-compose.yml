@@ -89,7 +89,9 @@ services:
     restart: unless-stopped
 
   evolution-api:
-    image: atendai/evolution-api:v2.1.1
+    # v2.3.7+ — suporta envio para jids @lid (privacidade do WhatsApp);
+    # a v2.1.1 retornava Bad Request {exists:false} ao responder a remetentes @lid.
+    image: evoapicloud/evolution-api:v2.3.7
     container_name: whatflow-evolution
     ports:
       - "8080:8080"
