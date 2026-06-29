@@ -4,8 +4,8 @@ import { ReactiveFormsModule, FormBuilder } from '@angular/forms';
 import { FlowsService } from './flows.service';
 import { FlowCanvasComponent } from './flow-canvas.component';
 import { NodePaletteComponent } from './node-palette.component';
+import { NodePropsComponent } from './node-props.component';
 import {
-  NODE_META,
   type Flow,
   type FlowEdge,
   type FlowNode,
@@ -34,7 +34,7 @@ function uid(prefix: string): string {
 @Component({
   selector: 'wf-flow-builder',
   standalone: true,
-  imports: [ReactiveFormsModule, FlowCanvasComponent, NodePaletteComponent],
+  imports: [ReactiveFormsModule, FlowCanvasComponent, NodePaletteComponent, NodePropsComponent],
   template: `
     <section class="builder">
       <header class="topbar">
@@ -103,41 +103,44 @@ function uid(prefix: string): string {
             />
           </div>
 
-          <!-- Painel de propriedades MÍNIMO (extensível no T-024) -->
+          <!-- Painel de propriedades por tipo (T-024) -->
           <aside class="props">
-            <h2>Propriedades</h2>
-
-            <div class="group">
-              <label>Gatilho</label>
-              <select [formControl]="triggerCtrl" [class.disabled]="!editable()">
-                @for (t of triggerTypes; track t) {
-                  <option [value]="t">{{ t }}</option>
-                }
-              </select>
-            </div>
-
             @if (selectedNode(); as n) {
-              <div class="group">
-                <label>Nó selecionado</label>
-                <p class="muted small">{{ meta(n.type).label }} — {{ n.id }}</p>
+              <div class="props-head">
+                <h2>Propriedades do nó</h2>
+                <button class="link" type="button" (click)="selectedId.set(null)">Ver fluxo</button>
               </div>
-              @if (n.type === 'TEXT') {
-                <div class="group">
-                  <label>Texto</label>
-                  <textarea
-                    rows="4"
-                    [value]="textOf(n)"
-                    (input)="onTextInput($event)"
-                    [disabled]="!editable()"
-                  ></textarea>
-                </div>
-              } @else {
-                <p class="muted small">
-                  Edição detalhada deste tipo chega no T-024 (painel por tipo).
-                </p>
-              }
+              <wf-node-props
+                [node]="n"
+                [readonly]="!editable()"
+                (patch)="patchNodeData(selectedId(), $event)"
+              />
             } @else {
-              <p class="muted small">Selecione um nó para editar.</p>
+              <h2>Propriedades do fluxo</h2>
+
+              <div class="group">
+                <label>Gatilho</label>
+                <select [formControl]="triggerCtrl" [class.disabled]="!editable()">
+                  @for (t of triggerTypes; track t) {
+                    <option [value]="t">{{ triggerLabel(t) }}</option>
+                  }
+                </select>
+              </div>
+
+              @if (triggerCtrl.value === 'KEYWORD') {
+                <div class="group">
+                  <label>Palavra-chave</label>
+                  <input
+                    class="wf-input"
+                    type="text"
+                    [formControl]="triggerValueCtrl"
+                    placeholder="ex.: oi, menu, comprar"
+                  />
+                  <p class="muted small">Aciona o fluxo quando a mensagem contém o termo.</p>
+                </div>
+              }
+
+              <p class="muted small">Selecione um nó no canvas para editar suas propriedades.</p>
             }
           </aside>
         </div>
@@ -178,7 +181,7 @@ function uid(prefix: string): string {
         min-width: 0;
       }
       .props {
-        width: 240px;
+        width: 288px;
         flex-shrink: 0;
         padding: 0.9rem;
         border-left: 1px solid #e2e8f0;
@@ -191,6 +194,18 @@ function uid(prefix: string): string {
         letter-spacing: 0.04em;
         color: #64748b;
         margin-bottom: 0.75rem;
+      }
+      .props-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.5rem;
+      }
+      .props-head h2 {
+        margin-bottom: 0.5rem;
+      }
+      .props-head .link {
+        font-size: 0.72rem;
       }
       .group {
         margin-bottom: 1rem;
@@ -287,6 +302,7 @@ export class FlowBuilderComponent implements OnInit {
   pendingType = signal<NodeType | null>(null);
 
   triggerCtrl = this.fb.nonNullable.control<TriggerType>('KEYWORD');
+  triggerValueCtrl = this.fb.nonNullable.control<string>('');
 
   editable = computed(() => this.flow()?.status === 'DRAFT');
   selectedNode = computed(() => {
@@ -307,7 +323,11 @@ export class FlowBuilderComponent implements OnInit {
         this.nodes.set(Array.isArray(f.nodesJson) ? f.nodesJson : []);
         this.edges.set(Array.isArray(f.edgesJson) ? f.edgesJson : []);
         this.triggerCtrl.setValue(f.triggerType, { emitEvent: false });
-        if (f.status !== 'DRAFT') this.triggerCtrl.disable({ emitEvent: false });
+        this.triggerValueCtrl.setValue(f.triggerValue ?? '', { emitEvent: false });
+        if (f.status !== 'DRAFT') {
+          this.triggerCtrl.disable({ emitEvent: false });
+          this.triggerValueCtrl.disable({ emitEvent: false });
+        }
         this.loading.set(false);
       },
       error: () => {
@@ -317,18 +337,20 @@ export class FlowBuilderComponent implements OnInit {
     });
 
     this.triggerCtrl.valueChanges.subscribe(() => this.markDirty());
+    this.triggerValueCtrl.valueChanges.subscribe(() => this.markDirty());
   }
 
-  meta(t: NodeType) {
-    return NODE_META[t];
+  triggerLabel(t: TriggerType): string {
+    return {
+      KEYWORD: 'Palavra-chave',
+      ANY_MESSAGE: 'Qualquer mensagem',
+      FIRST_MESSAGE: 'Primeira mensagem',
+      SCHEDULE: 'Agendado',
+    }[t];
   }
 
   statusLabel(s: FlowStatus): string {
     return { DRAFT: 'Rascunho', PUBLISHED: 'Publicado', ARCHIVED: 'Arquivado' }[s];
-  }
-
-  textOf(n: FlowNode): string {
-    return typeof n.data['text'] === 'string' ? (n.data['text'] as string) : '';
   }
 
   private markDirty(): void {
@@ -405,12 +427,7 @@ export class FlowBuilderComponent implements OnInit {
     }
   }
 
-  onTextInput(ev: Event): void {
-    const text = (ev.target as HTMLTextAreaElement).value;
-    this.patchNodeData(this.selectedId(), { text });
-  }
-
-  /** Ponto de extensão para o T-024: atualiza `data` do nó por id. */
+  /** Atualiza `data` do nó por id, mantendo imutabilidade e marcando dirty. */
   patchNodeData(id: string | null, patch: Record<string, unknown>): void {
     if (!id || !this.editable()) return;
     this.nodes.update(list =>
@@ -430,6 +447,7 @@ export class FlowBuilderComponent implements OnInit {
       .update(f.id, {
         name: f.name,
         triggerType: this.triggerCtrl.value,
+        triggerValue: this.triggerCtrl.value === 'KEYWORD' ? this.triggerValueCtrl.value : '',
         nodesJson: this.nodes(),
         edgesJson: this.edges(),
       })
