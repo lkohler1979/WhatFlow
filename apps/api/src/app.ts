@@ -16,6 +16,7 @@ import { usersRoutes } from '@modules/users/users.routes.js';
 import { instancesRoutes } from '@modules/instances/instances.routes.js';
 import { flowsRoutes } from '@modules/flows/flows.routes.js';
 import { webhookReceiverRoutes } from '@modules/webhook-receiver/webhook-receiver.routes.js';
+import { campaignsRoutes } from '@modules/campaigns/campaigns.routes.js';
 // import { flowsRoutes }            from '@modules/flows/flows.routes.js';
 // import { contactsRoutes }         from '@modules/contacts/contacts.routes.js';
 // import { conversationsRoutes }    from '@modules/conversations/conversations.routes.js';
@@ -62,6 +63,7 @@ export function createApp(): { app: Express; httpServer: HttpServer; io: SocketS
   router.use('/instances', instancesRoutes);
   router.use('/flows', flowsRoutes);
   router.use('/webhooks/evolution', webhookReceiverRoutes);
+  router.use('/campaigns', campaignsRoutes);
   // router.use('/flows',     flowsRoutes);
   // router.use('/contacts',  contactsRoutes);
   // ... (descomentar conforme implementar)
