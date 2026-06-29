@@ -5,6 +5,7 @@ import { FlowsService } from './flows.service';
 import { FlowCanvasComponent } from './flow-canvas.component';
 import { NodePaletteComponent } from './node-palette.component';
 import { NodePropsComponent } from './node-props.component';
+import { deriveVariables } from './flows.variables';
 import {
   type Flow,
   type FlowEdge,
@@ -113,6 +114,7 @@ function uid(prefix: string): string {
               <wf-node-props
                 [node]="n"
                 [readonly]="!editable()"
+                [variables]="variables()"
                 (patch)="patchNodeData(selectedId(), $event)"
               />
             } @else {
@@ -309,6 +311,12 @@ export class FlowBuilderComponent implements OnInit {
     const id = this.selectedId();
     return id ? (this.nodes().find(n => n.id === id) ?? null) : null;
   });
+
+  /**
+   * Variáveis conhecidas do fluxo (T-025): sistema + nós VARIABLE do grafo.
+   * Derivada aqui (fonte de verdade) e injetada no painel de propriedades.
+   */
+  variables = computed(() => deriveVariables(this.nodes()));
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');

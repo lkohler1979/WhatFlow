@@ -1,6 +1,8 @@
-import { Component, computed, input, output } from '@angular/core';
+import { Component, computed, input, output, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import type { FlowNode, NodeType } from './flows.models';
 import { NODE_META } from './flows.models';
+import { type VarInfo, interpolateSamples, unknownVariables } from './flows.variables';
 
 interface MenuOption {
   id: string;
@@ -24,20 +26,24 @@ function uid(prefix: string): string {
 }
 
 /**
- * Painel de propriedades por TIPO de nó (T-024).
+ * Painel de propriedades por TIPO de nó (T-024) + variáveis dinâmicas (T-025).
  *
  * Recebe o nó selecionado via `node` (input) e emite alterações de `data`
  * via `patch` (output) — o builder repassa a `patchNodeData(selectedId, patch)`,
  * mantendo a imutabilidade e o `dirty`. Como o nó vem por input, trocar a
  * seleção recarrega os valores automaticamente (sem estado interno duplicado).
  *
- * As mudanças refletem no canvas em tempo real porque o canvas lê de `node.data`
- * (texto, `options` do MENU → alças, saídas true/false da CONDITION).
+ * T-025: nos campos interpoláveis (TEXT.text, AI.prompt, MENU.text, legenda de
+ * mídia) há um seletor de variáveis (chips). Clicar insere `{{nome}}` na posição
+ * do cursor do campo. Abaixo do campo, um preview mostra o texto com as
+ * variáveis substituídas pelos valores de exemplo, e um aviso lista variáveis
+ * desconhecidas. A lista de variáveis chega pronta via `variables` (input),
+ * derivada pelo builder a partir do grafo. Persiste sempre o texto cru.
  */
 @Component({
   selector: 'wf-node-props',
   standalone: true,
-  imports: [],
+  imports: [NgTemplateOutlet],
   template: `
     @if (node(); as n) {
       <div class="group">
@@ -50,12 +56,20 @@ function uid(prefix: string): string {
           <div class="group">
             <label>Texto</label>
             <textarea
+              #f
               rows="4"
               [value]="str(n, 'text')"
-              (input)="patchField('text', $event)"
+              (input)="onInterpInput('text', $event)"
+              (focus)="rememberField($event)"
+              (select)="rememberField($event)"
+              (click)="rememberField($event)"
+              (keyup)="rememberField($event)"
               [disabled]="ro()"
               placeholder="Mensagem (use {{ '{{variavel}}' }} para interpolar)"
             ></textarea>
+            <ng-container
+              *ngTemplateOutlet="varTools; context: { $implicit: str(n, 'text'), field: f }"
+            />
           </div>
         }
 
@@ -63,12 +77,20 @@ function uid(prefix: string): string {
           <div class="group">
             <label>Prompt da IA</label>
             <textarea
+              #f
               rows="5"
               [value]="str(n, 'prompt')"
-              (input)="patchField('prompt', $event)"
+              (input)="onInterpInput('prompt', $event)"
+              (focus)="rememberField($event)"
+              (select)="rememberField($event)"
+              (click)="rememberField($event)"
+              (keyup)="rememberField($event)"
               [disabled]="ro()"
               placeholder="Instrução enviada ao modelo (interpolável com {{ '{{var}}' }})"
             ></textarea>
+            <ng-container
+              *ngTemplateOutlet="varTools; context: { $implicit: str(n, 'prompt'), field: f }"
+            />
           </div>
         }
 
@@ -156,12 +178,20 @@ function uid(prefix: string): string {
           <div class="group">
             <label>Enunciado</label>
             <textarea
+              #f
               rows="3"
               [value]="str(n, 'text')"
-              (input)="patchField('text', $event)"
+              (input)="onInterpInput('text', $event)"
+              (focus)="rememberField($event)"
+              (select)="rememberField($event)"
+              (click)="rememberField($event)"
+              (keyup)="rememberField($event)"
               [disabled]="ro()"
               placeholder="Pergunta do menu"
             ></textarea>
+            <ng-container
+              *ngTemplateOutlet="varTools; context: { $implicit: str(n, 'text'), field: f }"
+            />
           </div>
           <div class="group">
             <label>Opções</label>
@@ -286,12 +316,20 @@ function uid(prefix: string): string {
             <div class="group">
               <label>Legenda (opcional)</label>
               <textarea
+                #f
                 rows="2"
                 [value]="str(n, 'text')"
-                (input)="patchField('text', $event)"
+                (input)="onInterpInput('text', $event)"
+                (focus)="rememberField($event)"
+                (select)="rememberField($event)"
+                (click)="rememberField($event)"
+                (keyup)="rememberField($event)"
                 [disabled]="ro()"
                 placeholder="Texto que acompanha a mídia"
               ></textarea>
+              <ng-container
+                *ngTemplateOutlet="varTools; context: { $implicit: str(n, 'text'), field: f }"
+              />
             </div>
           } @else {
             <p class="muted small">Este tipo de nó não possui campos configuráveis.</p>
@@ -299,6 +337,39 @@ function uid(prefix: string): string {
         }
       }
     }
+
+    <!-- Ferramentas de variável reutilizáveis: chips + preview + aviso. -->
+    <ng-template #varTools let-text let-field="field">
+      @if (variables().length && !ro()) {
+        <div class="var-bar">
+          <span class="var-bar-label">Inserir variável:</span>
+          @for (v of variables(); track v.name) {
+            <button
+              type="button"
+              class="chip"
+              (mousedown)="$event.preventDefault()"
+              (click)="insertVar(field, v.name)"
+              [title]="'Insere {{' + v.name + '}}'"
+            >
+              {{ v.name }}
+            </button>
+          }
+        </div>
+      }
+      @if (text) {
+        <div class="preview">
+          <span class="preview-label">Preview:</span>
+          <span class="preview-text">{{ preview(text) }}</span>
+        </div>
+        @if (badVars(text).length) {
+          <p class="var-warn">
+            @for (b of badVars(text); track b) {
+              <span>Variável desconhecida: {{ '{{' + b + '}}' }}</span>
+            }
+          </p>
+        }
+      }
+    </ng-template>
   `,
   styles: [
     `
@@ -384,17 +455,77 @@ function uid(prefix: string): string {
         font-size: 0.72rem;
         color: #b45309;
       }
+      .var-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.3rem;
+        margin-top: 0.4rem;
+      }
+      .var-bar-label {
+        font-size: 0.7rem;
+        color: #64748b;
+      }
+      .chip {
+        border: 1px solid #c7d2fe;
+        background: #eef2ff;
+        color: #3730a3;
+        border-radius: 999px;
+        padding: 0.1rem 0.5rem;
+        font-size: 0.72rem;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        cursor: pointer;
+        line-height: 1.4;
+      }
+      .chip:hover {
+        background: #e0e7ff;
+      }
+      .preview {
+        margin-top: 0.4rem;
+        padding: 0.4rem 0.5rem;
+        background: #f8fafc;
+        border: 1px dashed #cbd5e1;
+        border-radius: 8px;
+        font-size: 0.78rem;
+      }
+      .preview-label {
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #64748b;
+        display: block;
+        margin-bottom: 0.15rem;
+      }
+      .preview-text {
+        white-space: pre-wrap;
+        word-break: break-word;
+        color: #0f172a;
+      }
+      .var-warn {
+        margin: 0.3rem 0 0;
+        font-size: 0.72rem;
+        color: #b42318;
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+      }
     `,
   ],
 })
 export class NodePropsComponent {
   node = input.required<FlowNode | null>();
   readonly = input<boolean>(false);
+  variables = input<VarInfo[]>([]);
   patch = output<Record<string, unknown>>();
 
   operators = OPERATORS;
 
   ro = computed(() => this.readonly());
+
+  /** Campo de texto interpolável focado por último + posição do caret. */
+  private focused: HTMLTextAreaElement | HTMLInputElement | null = null;
+  /** Chave do campo focado (ex.: 'text' | 'prompt') para reemitir o patch. */
+  private focusedKey = signal<string>('');
 
   options = computed<MenuOption[]>(() => {
     const n = this.node();
@@ -434,6 +565,72 @@ export class NodePropsComponent {
   num(n: FlowNode | null, key: string, fallback: number): number {
     const v = n?.data?.[key];
     return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
+  }
+
+  // --- Preview / variáveis (T-025) ---
+
+  /** Texto com as variáveis conhecidas substituídas pelas amostras. */
+  preview(text: string): string {
+    return interpolateSamples(text, this.variables());
+  }
+
+  /** Variáveis usadas no texto que não constam na lista conhecida. */
+  badVars(text: string): string[] {
+    return unknownVariables(text, this.variables());
+  }
+
+  /** Memoriza o campo interpolável focado (e seu caret) para inserção. */
+  rememberField(ev: Event): void {
+    const el = ev.target as HTMLTextAreaElement | HTMLInputElement;
+    this.focused = el;
+  }
+
+  /** Edição em campo interpolável: lembra o caret e emite o patch normal. */
+  onInterpInput(key: string, ev: Event): void {
+    if (this.ro()) return;
+    const el = ev.target as HTMLTextAreaElement | HTMLInputElement;
+    this.focused = el;
+    this.focusedKey.set(key);
+    this.patch.emit({ [key]: el.value });
+  }
+
+  /**
+   * Insere `{{name}}` na posição do cursor do campo (selectionStart/End);
+   * se o campo informado não for o focado, anexa ao fim. Atualiza o valor do
+   * elemento e emite o patch com o texto cru resultante.
+   */
+  insertVar(field: HTMLTextAreaElement | HTMLInputElement, name: string): void {
+    if (this.ro()) return;
+    const el = field;
+    const token = `{{${name}}}`;
+    const current = el.value;
+    const hasCaret = this.focused === el && el.selectionStart !== null;
+    const start = hasCaret ? (el.selectionStart ?? current.length) : current.length;
+    const end = hasCaret ? (el.selectionEnd ?? current.length) : current.length;
+    const next = current.slice(0, start) + token + current.slice(end);
+    el.value = next;
+    // Reposiciona o caret após o token inserido.
+    const pos = start + token.length;
+    el.focus();
+    try {
+      el.setSelectionRange(pos, pos);
+    } catch {
+      /* inputs sem suporte a setSelectionRange */
+    }
+    this.focused = el;
+    // Descobre a chave do campo a partir do atributo de placeholder não é confiável;
+    // usamos a última chave editada/focada.
+    const key = this.focusedKey() || this.inferKey(el);
+    this.focusedKey.set(key);
+    this.patch.emit({ [key]: next });
+  }
+
+  /** Heurística: deduz a chave do campo (fallback quando ainda não houve input). */
+  private inferKey(el: HTMLTextAreaElement | HTMLInputElement): string {
+    const n = this.node();
+    if (!n) return 'text';
+    // AI usa 'prompt'; demais campos interpoláveis usam 'text'.
+    return n.type === 'AI' ? 'prompt' : 'text';
   }
 
   patchField(key: string, ev: Event): void {
