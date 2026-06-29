@@ -90,7 +90,7 @@
 ### ÉPICO 3.2 — Editor Visual Frontend
 | ID | Tarefa | Critérios de Aceite | Prio | Esforço | Deps | Status |
 |---|---|---|---|---|---|---|
-| T-023 | Integração do editor de grafos (ngx-graph ou Angular CDK) | Usuário arrasta nó, conecta com outro, salva. Layout persiste ao reabrir. | Alta | XG | T-021 | ⬜ |
+| T-023 | Integração do editor de grafos (ngx-graph ou Angular CDK) | Usuário arrasta nó, conecta com outro, salva. Layout persiste ao reabrir. | Alta | XG | T-021 | ✅ (Flow Builder MVP com **Angular CDK DragDrop** + arestas SVG, sem lib externa de grafo. FlowList (lista/criar DRAFT/abrir) → FlowBuilder (orquestra) → NodePalette (arrasta/clica p/ criar nó) + FlowCanvas (cards por position{x,y}, drag livre, conexão saída→entrada, remover nó/aresta). Salva nodesJson+edgesJson via PATCH (layout persiste no `position`); publish trata 409 FLOW_IMMUTABLE → Duplicar. Gancho `patchNodeData` + `selectedNode` p/ o T-024. Build do web verde. Painel de propriedades mínimo (só TEXT/trigger) — completo é T-024) |
 | T-024 | Painel de propriedades dos nós | Cada tipo de nó tem formulário específico. Mudanças refletem no nó do canvas. | Alta | G | T-023 | ⬜ |
 | T-025 | Variáveis dinâmicas e preview | Clicar em variável insere no campo. Preview mostra valor substituído. Variável inválida alerta. | Média | M | T-024 | ⬜ |
 | T-026 | Tela de listagem de fluxos | Listagem carrega. Filtros funcionam. Ações executadas com feedback visual. | Média | M | T-021 | ⬜ |
