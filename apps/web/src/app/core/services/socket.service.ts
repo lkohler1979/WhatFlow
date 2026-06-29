@@ -15,6 +15,14 @@ export interface MessageEvent {
   preview: string;
 }
 
+export interface CampaignProgressEvent {
+  campaignId: string;
+  sent: number;
+  failed: number;
+  total: number;
+  status: 'DRAFT' | 'SCHEDULED' | 'RUNNING' | 'PAUSED' | 'COMPLETED' | 'CANCELLED' | 'FAILED';
+}
+
 @Injectable({ providedIn: 'root' })
 export class SocketService {
   private auth = inject(AuthService);
@@ -25,6 +33,8 @@ export class SocketService {
   readonly instanceStatus = signal<InstanceStatusEvent | null>(null);
   /** Última mensagem recebida (realtime). */
   readonly lastMessage = signal<MessageEvent | null>(null);
+  /** Último progresso de campanha recebido (realtime). */
+  readonly campaignProgress = signal<CampaignProgressEvent | null>(null);
   readonly connected = signal(false);
 
   /** Conecta ao Socket.io e entra na sala do tenant. Idempotente. */
@@ -49,6 +59,9 @@ export class SocketService {
       this.zone.run(() => this.instanceStatus.set(p)),
     );
     socket.on('message:new', (p: MessageEvent) => this.zone.run(() => this.lastMessage.set(p)));
+    socket.on('campaign:progress', (p: CampaignProgressEvent) =>
+      this.zone.run(() => this.campaignProgress.set(p)),
+    );
   }
 
   disconnect(): void {

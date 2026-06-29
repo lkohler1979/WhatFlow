@@ -114,7 +114,7 @@
 | T-031 | Setup BullMQ + Redis para filas | Jobs adicionados à fila são processados. Retry automático em falha. Bull-Board acessível. | Alta | M | T-004 | ✅ (`queues/`: `queue.factory` (connection ioredis reaproveitada + defaults retry attempts:3/backoff exp 2s + removeOn*), `createQueue`/`createWorker`/`addJob`; filas `example`/`campaign`/`webhook-delivery`; workers sobem no `server.ts` (startQueues) com shutdown gracioso (stopQueues). Validado no Docker: job processado, retry 3x, Bull-Board em :3001 lista as 3 filas. 5 testes mockados) |
 | T-032 | CRUD de campanhas (backend) | Campanha criada, iniciada, pausada, cancelada. Status atualizado corretamente. | Alta | G | T-031 | ✅ (módulo `campaigns` (schema/repo/service/controller/routes), tenant-scoped, em `/v1/campaigns`. Máquina de estados: create→DRAFT/SCHEDULED, start→RUNNING (de DRAFT/SCHEDULED/PAUSED), pause→PAUSED, cancel→CANCELLED (não-terminal); update/remove só DRAFT/SCHEDULED; transição inválida→409 INVALID_CAMPAIGN_STATE. Valida instância do tenant; CampaignContact via createMany. start enfileira `addJob(campaign)` (gancho T-033). 29 testes (139 no total)) |
 | T-033 | Processador de campanha com anti-ban | Campanha de 50 contatos enviada com delays. Progresso visível em tempo real. | Alta | G | T-032 | ✅ (`campaign.processor` + worker (fila `campaign`, concurrency 2): carrega contatos PENDING, envia (sendText/sendMedia), **delay aleatório `delayMinMs`–`delayMaxMs`** entre envios; falha de contato→FAILED+failedCount sem abortar; relê status a cada contato → interrompe em PAUSED/CANCELLED; ao fim COMPLETED; emite `campaign:progress` {sent,failed,total,status} via Socket.io. Repo: getEvolutionKeyForCampaign/getStatus/pendingContacts/updateContactStatus/incrementCounters/recordOutboundMessage. 11 testes (159 no total)) |
-| T-034 | Tela de campanhas no frontend | Usuário cria e dispara campanha pela UI. Progresso atualiza sem refresh. | Alta | G | T-032, T-033 | ⬜ |
+| T-034 | Tela de campanhas no frontend | Usuário cria e dispara campanha pela UI. Progresso atualiza sem refresh. | Alta | G | T-032, T-033 | ✅ (tela funcional: criar campanha com instância + contatos existentes, selecionar tipo de mensagem/delays/agendamento, iniciar/pausar/cancelar/excluir; progresso atualizado via Socket.io `campaign:progress`. `npm run build --workspace=apps/web` verde) |
 | T-035 | Upload e gestão de lista de contatos para campanha | CSV com 1000 linhas importado em < 10s. Números inválidos sinalizados. Preview correto. | Média | M | T-034 | ⬜ |
 
 ---
@@ -134,7 +134,7 @@
 ### ÉPICO 5.2 — Módulo de Contatos
 | ID | Tarefa | Critérios de Aceite | Prio | Esforço | Deps | Status |
 |---|---|---|---|---|---|---|
-| T-041 | CRUD completo de contatos | Importar 500 contatos em < 15s. Busca por nome/número funciona. Export correto. | Alta | G | T-004 | ⬜ |
+| T-041 | CRUD completo de contatos | Importar 500 contatos em < 15s. Busca por nome/número funciona. Export correto. | Alta | G | T-004 | ✅ (API `/v1/contacts`: list/search/paginação, create/get/update/delete, import CSV com validação/duplicados e export CSV; tela de contatos com busca, edição, preview/importação e export. Backend build verde + testes `contacts` 9/9; web build verde) |
 | T-042 | Tela de contatos e segmentação | Filtro por tag funciona. Histórico do contato visível. Bulk action em 100 contatos. | Alta | G | T-041 | ⬜ |
 | T-043 | Sistema de tags global | Tag criada aparece no autocomplete. Filtro por tag funciona em contatos e conversas. | Média | M | T-041 | ⬜ |
 
