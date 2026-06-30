@@ -22,7 +22,17 @@ const campaignBaseShape = z.object({
 export const CreateCampaignSchema = campaignBaseShape
   .extend({
     /** UUIDs de Contacts do tenant que entram na campanha. */
-    contactIds: z.array(z.string().uuid()).min(1).max(50_000),
+    contactIds: z.array(z.string().uuid()).max(50_000).default([]),
+    /**
+     * Telefones (brutos) — usados quando a lista vem de um CSV (T-035). Cada
+     * telefone é resolvido via find-or-create de contato no tenant antes da
+     * associação à campanha. A validação fina é feita no service.
+     */
+    phones: z.array(z.string().min(1).max(32)).max(50_000).default([]),
+  })
+  .refine(d => d.contactIds.length > 0 || d.phones.length > 0, {
+    message: 'Informe contactIds ou phones para a campanha',
+    path: ['contactIds'],
   })
   .refine(d => d.messageType !== 'TEXT' || !!d.messageContent, {
     message: 'messageContent é obrigatório para mensagens de texto',

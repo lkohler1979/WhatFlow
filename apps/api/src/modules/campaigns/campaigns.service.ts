@@ -1,4 +1,5 @@
 import { campaignsRepository } from './campaigns.repository.js';
+import { contactsService } from '@modules/contacts/contacts.service.js';
 import { AppError, NotFoundError } from '@core/errors.js';
 import { logger } from '@core/logger.js';
 import { addJob, campaignQueue } from '@queues/index.js';
@@ -75,7 +76,20 @@ export const campaignsService = {
     const okInstance = await campaignsRepository.instanceBelongsToTenant(dto.instanceId, tenantId);
     if (!okInstance) throw new NotFoundError('Instância');
 
-    const contacts = await campaignsRepository.resolveContacts(tenantId, dto.contactIds);
+    // Contatos podem vir por IDs já cadastrados e/ou por telefones de um CSV
+    // (T-035). Os telefones são resolvidos via find-or-create no tenant.
+    const byIds = dto.contactIds.length
+      ? await campaignsRepository.resolveContacts(tenantId, dto.contactIds)
+      : [];
+    const byPhones = dto.phones.length
+      ? (await contactsService.bulkUpsertByPhones(tenantId, dto.phones)).contacts
+      : [];
+
+    // Dedupe por contactId (um telefone do CSV pode já estar entre os IDs).
+    const dedup = new Map<string, { id: string; phone: string }>();
+    for (const c of [...byIds, ...byPhones]) dedup.set(c.id, c);
+    const contacts = [...dedup.values()];
+
     if (contacts.length === 0) {
       throw new AppError('Nenhum contato válido para a campanha', 422, 'NO_VALID_CONTACTS');
     }

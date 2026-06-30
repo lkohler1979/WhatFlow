@@ -9,6 +9,9 @@ import {
 import { ContactsService, type Contact } from '../contacts/contacts.service';
 import { InstancesService, type Instance } from '../instances/instances.service';
 import { SocketService } from '@core/services/socket.service';
+import { parseCsvPhones, type CsvPhonesResult } from './csv-phones.util';
+
+type ContactSource = 'existing' | 'csv';
 
 const STATUS_LABEL: Record<CampaignStatus, string> = {
   DRAFT: 'Rascunho',
@@ -50,7 +53,7 @@ const MESSAGE_LABEL: Record<CampaignMessageType, string> = {
         <form class="composer" [formGroup]="form" (ngSubmit)="create()">
           <div class="section-head">
             <strong>Nova campanha</strong>
-            <span class="muted">{{ selectedCount() }} selecionado(s)</span>
+            <span class="muted">{{ recipientCount() }} destinatário(s)</span>
           </div>
 
           <label>
@@ -114,38 +117,112 @@ const MESSAGE_LABEL: Record<CampaignMessageType, string> = {
           </div>
 
           <div class="contacts-box">
-            <div class="section-head">
-              <strong>Contatos</strong>
-              <button type="button" class="link-btn" (click)="toggleAllFiltered()">
-                {{ allFilteredSelected() ? 'Limpar seleção' : 'Selecionar visíveis' }}
+            <div class="source-tabs">
+              <button
+                type="button"
+                class="tab"
+                [class.active]="contactSource() === 'existing'"
+                (click)="setSource('existing')"
+              >
+                Contatos existentes
+              </button>
+              <button
+                type="button"
+                class="tab"
+                [class.active]="contactSource() === 'csv'"
+                (click)="setSource('csv')"
+              >
+                Importar CSV
               </button>
             </div>
-            <input
-              class="wf-input"
-              [formControl]="contactSearchCtrl"
-              placeholder="Buscar contatos"
-            />
-            <div class="contact-list">
-              @if (contactsLoading()) {
-                <p class="muted">Carregando...</p>
-              } @else if (filteredContacts().length === 0) {
-                <p class="muted">Nenhum contato disponível.</p>
-              } @else {
-                @for (contact of filteredContacts(); track contact.id) {
-                  <label class="contact-row">
-                    <input
-                      type="checkbox"
-                      [checked]="isSelected(contact.id)"
-                      (change)="toggleContact(contact.id)"
-                    />
-                    <span>
-                      <strong>{{ contact.name || contact.phone }}</strong>
-                      <small>{{ contact.phone }}</small>
-                    </span>
-                  </label>
+
+            @if (contactSource() === 'existing') {
+              <div class="section-head">
+                <strong>Contatos</strong>
+                <button type="button" class="link-btn" (click)="toggleAllFiltered()">
+                  {{ allFilteredSelected() ? 'Limpar seleção' : 'Selecionar visíveis' }}
+                </button>
+              </div>
+              <input
+                class="wf-input"
+                [formControl]="contactSearchCtrl"
+                placeholder="Buscar contatos"
+              />
+              <div class="contact-list">
+                @if (contactsLoading()) {
+                  <p class="muted">Carregando...</p>
+                } @else if (filteredContacts().length === 0) {
+                  <p class="muted">Nenhum contato disponível.</p>
+                } @else {
+                  @for (contact of filteredContacts(); track contact.id) {
+                    <label class="contact-row">
+                      <input
+                        type="checkbox"
+                        [checked]="isSelected(contact.id)"
+                        (change)="toggleContact(contact.id)"
+                      />
+                      <span>
+                        <strong>{{ contact.name || contact.phone }}</strong>
+                        <small>{{ contact.phone }}</small>
+                      </span>
+                    </label>
+                  }
+                }
+              </div>
+            } @else {
+              <div class="section-head">
+                <strong>Lista por CSV</strong>
+                @if (csvFileName()) {
+                  <button type="button" class="link-btn" (click)="clearCsv()">Remover</button>
+                }
+              </div>
+              <p class="muted csv-hint">
+                CSV com coluna phone/telefone/numero/whatsapp (ou uma coluna só de números). Números
+                fora do padrão são sinalizados e ignorados.
+              </p>
+              <input
+                class="wf-input"
+                type="file"
+                accept=".csv,text/csv"
+                (change)="onCsvSelected($event)"
+              />
+              @if (csvFileName()) {
+                <p class="muted">Arquivo: {{ csvFileName() }}</p>
+              }
+              @if (csvError()) {
+                <p class="error">{{ csvError() }}</p>
+              }
+              @if (csvPreview(); as preview) {
+                <div class="csv-preview">
+                  <div class="stat">
+                    <span class="num">{{ preview.total }}</span>
+                    <span class="lbl">Linhas</span>
+                  </div>
+                  <div class="stat ok">
+                    <span class="num">{{ preview.valid }}</span>
+                    <span class="lbl">Válidos</span>
+                  </div>
+                  <div class="stat bad">
+                    <span class="num">{{ preview.invalid }}</span>
+                    <span class="lbl">Inválidos</span>
+                  </div>
+                  <div class="stat warn">
+                    <span class="num">{{ preview.duplicates }}</span>
+                    <span class="lbl">Duplicados</span>
+                  </div>
+                </div>
+                @if (preview.invalidSamples.length > 0) {
+                  <details class="invalid-list">
+                    <summary>{{ preview.invalid }} número(s) inválido(s)</summary>
+                    <ul>
+                      @for (s of preview.invalidSamples; track s.line) {
+                        <li>Linha {{ s.line }}: "{{ s.value }}"</li>
+                      }
+                    </ul>
+                  </details>
                 }
               }
-            </div>
+            }
           </div>
 
           <button
@@ -325,6 +402,71 @@ const MESSAGE_LABEL: Record<CampaignMessageType, string> = {
         border-radius: 8px;
         padding: 0.75rem;
       }
+      .source-tabs {
+        display: flex;
+        gap: 0.5rem;
+      }
+      .source-tabs .tab {
+        flex: 1;
+        border: 1px solid #e5e7eb;
+        background: #f8fafc;
+        border-radius: 6px;
+        padding: 0.45rem;
+        cursor: pointer;
+        font: inherit;
+        font-size: 0.82rem;
+      }
+      .source-tabs .tab.active {
+        background: #2563eb;
+        color: #fff;
+        border-color: #2563eb;
+      }
+      .csv-hint {
+        font-size: 0.78rem;
+      }
+      .csv-preview {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.5rem;
+      }
+      .csv-preview .stat {
+        display: grid;
+        gap: 0.1rem;
+        text-align: center;
+        padding: 0.5rem 0.25rem;
+        border-radius: 6px;
+        background: #f1f5f9;
+      }
+      .csv-preview .stat .num {
+        font-size: 1.15rem;
+        font-weight: 700;
+      }
+      .csv-preview .stat .lbl {
+        font-size: 0.72rem;
+        color: #667085;
+      }
+      .csv-preview .stat.ok {
+        background: #d1fae5;
+        color: #065f46;
+      }
+      .csv-preview .stat.bad {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+      .csv-preview .stat.warn {
+        background: #fef3c7;
+        color: #92400e;
+      }
+      .invalid-list {
+        font-size: 0.8rem;
+        color: #991b1b;
+      }
+      .invalid-list ul {
+        margin: 0.4rem 0 0;
+        padding-left: 1.1rem;
+        max-height: 140px;
+        overflow: auto;
+      }
       .contact-list {
         max-height: 260px;
         overflow: auto;
@@ -447,6 +589,12 @@ export class CampaignsComponent implements OnInit {
   error = signal<string | null>(null);
   selected = signal<Set<string>>(new Set());
 
+  // --- Origem da lista de contatos (T-035): contatos existentes ou CSV ---
+  contactSource = signal<ContactSource>('existing');
+  csvFileName = signal<string | null>(null);
+  csvPreview = signal<CsvPhonesResult | null>(null);
+  csvError = signal<string | null>(null);
+
   statusCtrl = this.fb.nonNullable.control('');
   contactSearchCtrl = this.fb.nonNullable.control('');
   form = this.fb.nonNullable.group({
@@ -543,12 +691,51 @@ export class CampaignsComponent implements OnInit {
     });
   }
 
+  recipientCount(): number {
+    return this.contactSource() === 'csv' ? (this.csvPreview()?.valid ?? 0) : this.selectedCount();
+  }
+
   canCreate(): boolean {
     const raw = this.form.getRawValue();
     const validDelay = Number(raw.delayMinMs) <= Number(raw.delayMaxMs);
     const hasMessage = raw.messageType !== 'TEXT' || raw.messageContent.trim().length > 0;
     const hasMedia = raw.messageType === 'TEXT' || raw.mediaUrl.trim().length > 0;
-    return this.form.valid && validDelay && hasMessage && hasMedia && this.selectedCount() > 0;
+    return this.form.valid && validDelay && hasMessage && hasMedia && this.recipientCount() > 0;
+  }
+
+  setSource(source: ContactSource): void {
+    this.contactSource.set(source);
+    this.error.set(null);
+  }
+
+  onCsvSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    this.csvError.set(null);
+    this.csvPreview.set(null);
+    this.csvFileName.set(null);
+    if (!file) return;
+    this.csvFileName.set(file.name);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result ?? '');
+      const preview = parseCsvPhones(text);
+      if (preview.total === 0) {
+        this.csvError.set('CSV vazio ou sem linhas de telefone.');
+        return;
+      }
+      this.csvPreview.set(preview);
+    };
+    reader.onerror = () => this.csvError.set('Falha ao ler o arquivo CSV.');
+    reader.readAsText(file);
+    // Permite reselecionar o mesmo arquivo depois.
+    input.value = '';
+  }
+
+  clearCsv(): void {
+    this.csvPreview.set(null);
+    this.csvFileName.set(null);
+    this.csvError.set(null);
   }
 
   create(): void {
@@ -556,6 +743,7 @@ export class CampaignsComponent implements OnInit {
     this.creating.set(true);
     this.error.set(null);
     const raw = this.form.getRawValue();
+    const fromCsv = this.contactSource() === 'csv';
     this.campaignsSvc
       .create({
         name: raw.name.trim(),
@@ -567,12 +755,16 @@ export class CampaignsComponent implements OnInit {
         scheduledAt: raw.scheduledAt ? new Date(raw.scheduledAt).toISOString() : null,
         delayMinMs: Number(raw.delayMinMs),
         delayMaxMs: Number(raw.delayMaxMs),
-        contactIds: [...this.selected()],
+        ...(fromCsv
+          ? { phones: this.csvPreview()?.phones ?? [] }
+          : { contactIds: [...this.selected()] }),
       })
       .subscribe({
         next: () => {
           this.creating.set(false);
           this.selected.set(new Set());
+          this.clearCsv();
+          this.contactSource.set('existing');
           this.form.reset({
             name: '',
             instanceId: '',

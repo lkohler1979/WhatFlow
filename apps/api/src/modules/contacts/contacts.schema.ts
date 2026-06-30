@@ -52,7 +52,13 @@ export const ImportContactsSchema = z.object({
   csv: z.string().min(1, 'CSV vazio').max(5_000_000, 'CSV muito grande'),
 });
 
+/** Validação/preview de uma lista de telefones (ex.: vinda de CSV de campanha). */
+export const ValidatePhonesSchema = z.object({
+  phones: z.array(z.string().min(1).max(32)).min(1).max(50_000),
+});
+
 export type CreateContactDto = z.infer<typeof CreateContactSchema>;
 export type UpdateContactDto = z.infer<typeof UpdateContactSchema>;
 export type ListContactsQuery = z.infer<typeof ListContactsQuerySchema>;
 export type ImportContactsDto = z.infer<typeof ImportContactsSchema>;
+export type ValidatePhonesDto = z.infer<typeof ValidatePhonesSchema>;

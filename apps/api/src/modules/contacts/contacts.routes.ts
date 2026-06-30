@@ -8,6 +8,7 @@ import {
   CreateContactSchema,
   ImportContactsSchema,
   UpdateContactSchema,
+  ValidatePhonesSchema,
 } from './contacts.schema.js';
 
 export const contactsRoutes: Router = Router();
@@ -27,6 +28,12 @@ contactsRoutes.post(
   requireRole('OWNER', 'ADMIN'),
   validate(ImportContactsSchema),
   contactsController.importCsv,
+);
+contactsRoutes.post(
+  '/validate-phones',
+  requireRole('OWNER', 'ADMIN'),
+  validate(ValidatePhonesSchema),
+  contactsController.validatePhones,
 );
 contactsRoutes.get('/:id', validate(ContactIdParamSchema, 'params'), contactsController.get);
 contactsRoutes.patch(

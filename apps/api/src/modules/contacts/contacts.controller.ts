@@ -1,7 +1,12 @@
 import { Request, Response } from 'express';
 import { contactsService } from './contacts.service.js';
 import { ListContactsQuerySchema } from './contacts.schema.js';
-import type { CreateContactDto, ImportContactsDto, UpdateContactDto } from './contacts.schema.js';
+import type {
+  CreateContactDto,
+  ImportContactsDto,
+  UpdateContactDto,
+  ValidatePhonesDto,
+} from './contacts.schema.js';
 
 export const contactsController = {
   async list(req: Request, res: Response): Promise<void> {
@@ -43,6 +48,11 @@ export const contactsController = {
       req.body as ImportContactsDto,
     );
     res.status(200).json(result);
+  },
+
+  validatePhones(req: Request, res: Response): void {
+    const { phones } = req.body as ValidatePhonesDto;
+    res.status(200).json(contactsService.validatePhones(phones));
   },
 
   async exportCsv(req: Request, res: Response): Promise<void> {

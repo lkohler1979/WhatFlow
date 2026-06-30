@@ -98,6 +98,59 @@ describe('contactsService.importCsv', () => {
   });
 });
 
+describe('contactsService.validatePhones (preview T-035)', () => {
+  it('conta válidos, inválidos e duplicados sem tocar no banco', () => {
+    const r = contactsService.validatePhones([
+      '5527999887766',
+      '+55 (27) 99977-6655',
+      '123', // inválido (curto)
+      'abc', // inválido (sem dígitos)
+      '5527999887766', // duplicado do 1º
+    ]);
+    expect(r).toEqual({ total: 5, valid: 2, invalid: 2, duplicates: 1 });
+    expect(mockRepo.findOrCreateByPhones).not.toHaveBeenCalled();
+  });
+});
+
+describe('contactsService.bulkUpsertByPhones (T-035)', () => {
+  it('normaliza, deduplica e faz find-or-create em lote dos válidos', async () => {
+    mockRepo.findOrCreateByPhones.mockResolvedValue([
+      { id: 'a', phone: '5527999887766' },
+      { id: 'b', phone: '5527999776655' },
+    ]);
+
+    const r = await contactsService.bulkUpsertByPhones('t1', [
+      '5527999887766',
+      '+55 (27) 99977-6655',
+      '5527999887766', // duplicado
+      '12', // inválido
+    ]);
+
+    // Só os válidos e únicos (normalizados) chegam ao repositório, uma vez.
+    expect(mockRepo.findOrCreateByPhones).toHaveBeenCalledTimes(1);
+    expect(mockRepo.findOrCreateByPhones).toHaveBeenCalledWith('t1', [
+      '5527999887766',
+      '5527999776655',
+    ]);
+    expect(r).toMatchObject({ total: 4, valid: 2, invalid: 1, duplicates: 1 });
+    expect(r.contacts).toHaveLength(2);
+  });
+
+  it('lista grande (1000 linhas) resolve numa única chamada em lote', async () => {
+    // 13 dígitos, todos únicos: 552790000000 + i (i de 0..999).
+    const phones = Array.from({ length: 1000 }, (_, i) => String(5527900000000 + i));
+    mockRepo.findOrCreateByPhones.mockResolvedValue(
+      phones.map((phone, i) => ({ id: `c${i}`, phone })),
+    );
+
+    const r = await contactsService.bulkUpsertByPhones('t1', phones);
+
+    expect(mockRepo.findOrCreateByPhones).toHaveBeenCalledTimes(1);
+    expect(r.valid).toBe(1000);
+    expect(r.contacts).toHaveLength(1000);
+  });
+});
+
 describe('contactsService.export', () => {
   it('gera CSV com contatos filtrados', async () => {
     mockRepo.exportByTenant.mockResolvedValue([contact()]);

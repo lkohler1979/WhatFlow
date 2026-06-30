@@ -55,7 +55,10 @@ export interface CampaignPayload {
   scheduledAt?: string | null;
   delayMinMs: number;
   delayMaxMs: number;
-  contactIds: string[];
+  /** Contatos já cadastrados selecionados. */
+  contactIds?: string[];
+  /** Telefones brutos (ex.: vindos de CSV) — resolvidos no backend. */
+  phones?: string[];
 }
 
 @Injectable({ providedIn: 'root' })

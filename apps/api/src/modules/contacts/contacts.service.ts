@@ -62,6 +62,37 @@ function unique(ids: string[]): string[] {
   return [...new Set(ids)];
 }
 
+interface PhoneValidation {
+  valid: string[];
+  total: number;
+  invalid: number;
+  duplicates: number;
+}
+
+/** Normaliza, valida e deduplica uma lista de telefones brutos (reusa T-041). */
+function validatePhoneList(phones: string[]): PhoneValidation {
+  const seen = new Set<string>();
+  const valid: string[] = [];
+  let invalid = 0;
+  let duplicates = 0;
+
+  for (const raw of phones) {
+    const phone = normalizePhone(raw ?? '');
+    if (!isValidPhone(phone)) {
+      invalid += 1;
+      continue;
+    }
+    if (seen.has(phone)) {
+      duplicates += 1;
+      continue;
+    }
+    seen.add(phone);
+    valid.push(phone);
+  }
+
+  return { valid, total: phones.length, invalid, duplicates };
+}
+
 async function assertTags(tenantId: string, tagIds: string[]): Promise<string[]> {
   const ids = unique(tagIds);
   if (ids.length === 0) return ids;
@@ -298,6 +329,45 @@ export const contactsService = {
       failed: errors.length,
       errors: errors.slice(0, 50),
     };
+  },
+
+  /**
+   * Find-or-create em lote de contatos a partir de uma lista de telefones
+   * (brutos). Normaliza, valida (reusando isValidPhone/normalizePhone do
+   * T-041), deduplica e cria os que faltam num único lote. Usado pela
+   * montagem de lista de campanha via CSV (T-035).
+   *
+   * Retorna os contatos resolvidos e um resumo de inválidos/duplicados para
+   * conferência. Não lança quando há inválidos — o chamador decide.
+   */
+  async bulkUpsertByPhones(
+    tenantId: string,
+    phones: string[],
+  ): Promise<{
+    contacts: { id: string; phone: string }[];
+    total: number;
+    valid: number;
+    invalid: number;
+    duplicates: number;
+  }> {
+    const { valid, total, invalid, duplicates } = validatePhoneList(phones);
+    const contacts = await contactsRepository.findOrCreateByPhones(tenantId, valid);
+    return { contacts, total, valid: valid.length, invalid, duplicates };
+  },
+
+  /**
+   * Preview puro (sem escrita) de uma lista de telefones — total, válidos,
+   * inválidos e duplicados. Usado pelo wizard de campanha (T-035) para
+   * sinalizar números fora do padrão antes de confirmar.
+   */
+  validatePhones(phones: string[]): {
+    total: number;
+    valid: number;
+    invalid: number;
+    duplicates: number;
+  } {
+    const r = validatePhoneList(phones);
+    return { total: r.total, valid: r.valid.length, invalid: r.invalid, duplicates: r.duplicates };
   },
 
   async export(tenantId: string, query: ListContactsQuery): Promise<string> {

@@ -1,8 +1,13 @@
 import { campaignsService } from '@modules/campaigns/campaigns.service.js';
 import { campaignsRepository as repo } from '@modules/campaigns/campaigns.repository.js';
+import { contactsService } from '@modules/contacts/contacts.service.js';
 import { addJob } from '@queues/index.js';
 
 jest.mock('@modules/campaigns/campaigns.repository.js');
+jest.mock('@modules/contacts/contacts.service.js', () => ({
+  __esModule: true,
+  contactsService: { bulkUpsertByPhones: jest.fn() },
+}));
 jest.mock('@queues/index.js', () => ({
   __esModule: true,
   addJob: jest.fn().mockResolvedValue(undefined),
@@ -11,6 +16,7 @@ jest.mock('@queues/index.js', () => ({
 
 const mockRepo = repo as jest.Mocked<typeof repo>;
 const mockAddJob = addJob as jest.Mock;
+const mockBulkByPhones = contactsService.bulkUpsertByPhones as jest.Mock;
 
 const campaign = (over: Record<string, unknown> = {}) =>
   ({
@@ -58,6 +64,7 @@ describe('campaignsService.create', () => {
     messageType: 'TEXT' as const,
     messageContent: 'oi',
     contactIds: ['ct1'],
+    phones: [] as string[],
     delayMinMs: 3000,
     delayMaxMs: 8000,
   };
@@ -88,6 +95,60 @@ describe('campaignsService.create', () => {
       statusCode: 422,
       code: 'NO_VALID_CONTACTS',
     });
+  });
+
+  it('resolve lista por phones (CSV) via find-or-create e associa (T-035)', async () => {
+    mockRepo.resolveContacts.mockResolvedValue([]);
+    mockBulkByPhones.mockResolvedValue({
+      contacts: [
+        { id: 'p1', phone: '5527999887766' },
+        { id: 'p2', phone: '5527999776655' },
+      ],
+      total: 2,
+      valid: 2,
+      invalid: 0,
+      duplicates: 0,
+    });
+
+    await campaignsService.create('t1', {
+      ...dto,
+      contactIds: [],
+      phones: ['5527999887766', '5527999776655'],
+    });
+
+    expect(mockBulkByPhones).toHaveBeenCalledWith('t1', ['5527999887766', '5527999776655']);
+    expect(mockRepo.createWithContacts).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 't1' }),
+      [
+        { contactId: 'p1', phone: '5527999887766' },
+        { contactId: 'p2', phone: '5527999776655' },
+      ],
+    );
+  });
+
+  it('dedupe entre contactIds e phones (mesmo contato não duplica)', async () => {
+    mockRepo.resolveContacts.mockResolvedValue([{ id: 'ct1', phone: '5527999887766' }]);
+    mockBulkByPhones.mockResolvedValue({
+      contacts: [
+        { id: 'ct1', phone: '5527999887766' }, // já presente via contactIds
+        { id: 'p2', phone: '5527999776655' },
+      ],
+      total: 2,
+      valid: 2,
+      invalid: 0,
+      duplicates: 0,
+    });
+
+    await campaignsService.create('t1', {
+      ...dto,
+      contactIds: ['ct1'],
+      phones: ['5527999887766', '5527999776655'],
+    });
+
+    expect(mockRepo.createWithContacts).toHaveBeenCalledWith(expect.anything(), [
+      { contactId: 'ct1', phone: '5527999887766' },
+      { contactId: 'p2', phone: '5527999776655' },
+    ]);
   });
 });
 

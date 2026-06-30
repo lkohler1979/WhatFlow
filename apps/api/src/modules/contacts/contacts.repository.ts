@@ -121,6 +121,44 @@ export const contactsRepository = {
     return res.count;
   },
 
+  /**
+   * Find-or-create de contatos a partir de uma lista de telefones já
+   * normalizados/validados e deduplicados. Cria em lote os que faltam e
+   * retorna o par {id, phone} de TODOS os telefones informados (existentes +
+   * recém-criados), na mesma ordem de entrada. Tenant-scoped, sem N+1.
+   */
+  async findOrCreateByPhones(
+    tenantId: string,
+    phones: string[],
+  ): Promise<{ id: string; phone: string }[]> {
+    if (phones.length === 0) return [];
+
+    const existing = await prisma.contact.findMany({
+      where: { tenantId, phone: { in: phones } },
+      select: { id: true, phone: true },
+    });
+    const existingPhones = new Set(existing.map(c => c.phone));
+    const missing = phones.filter(p => !existingPhones.has(p));
+
+    if (missing.length > 0) {
+      // Lote único; skipDuplicates protege contra corrida concorrente.
+      await prisma.contact.createMany({
+        data: missing.map(phone => ({ tenantId, phone, customFields: {} })),
+        skipDuplicates: true,
+      });
+    }
+
+    // Recarrega todos para obter os ids dos recém-criados (1 query).
+    const all = await prisma.contact.findMany({
+      where: { tenantId, phone: { in: phones } },
+      select: { id: true, phone: true },
+    });
+    const byPhone = new Map(all.map(c => [c.phone, c.id]));
+    return phones
+      .filter(p => byPhone.has(p))
+      .map(phone => ({ id: byPhone.get(phone) as string, phone }));
+  },
+
   async bulkUpsert(
     tenantId: string,
     rows: ContactImportInput[],

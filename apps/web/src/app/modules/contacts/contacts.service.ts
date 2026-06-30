@@ -49,6 +49,13 @@ export interface ContactImportResult {
   errors: { line: number; message: string }[];
 }
 
+export interface PhoneValidationResult {
+  total: number;
+  valid: number;
+  invalid: number;
+  duplicates: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ContactsService {
   private api = inject(ApiService);
@@ -81,6 +88,10 @@ export class ContactsService {
 
   importCsv(csv: string): Observable<ContactImportResult> {
     return this.api.post<ContactImportResult>('/contacts/import', { csv });
+  }
+
+  validatePhones(phones: string[]): Observable<PhoneValidationResult> {
+    return this.api.post<PhoneValidationResult>('/contacts/validate-phones', { phones });
   }
 
   exportCsv(search?: string): Observable<string> {
