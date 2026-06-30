@@ -10,6 +10,7 @@ interface ListFilters {
   status?: ConversationStatus;
   instanceId?: string;
   assignedToUserId?: string;
+  contactId?: string;
   botActive?: boolean;
   search?: string;
   page: number;
@@ -26,6 +27,7 @@ export const conversationsRepository = {
     if (f.status) where.status = f.status;
     if (f.instanceId) where.instanceId = f.instanceId;
     if (f.assignedToUserId) where.assignedTo = f.assignedToUserId;
+    if (f.contactId) where.contactId = f.contactId;
     if (f.botActive !== undefined) where.botActive = f.botActive;
     if (f.search) {
       where.contact = {

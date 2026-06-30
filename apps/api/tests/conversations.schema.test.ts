@@ -37,6 +37,15 @@ describe('conversations.schema', () => {
     it('rejeita status inválido', () => {
       expect(ListConversationsQuerySchema.safeParse({ status: 'CLOSED' }).success).toBe(false);
     });
+
+    it('aceita contactId (uuid) para histórico do contato', () => {
+      const r = ListConversationsQuerySchema.safeParse({ contactId: uuid });
+      expect(r.success && r.data.contactId).toBe(uuid);
+    });
+
+    it('rejeita contactId não-uuid', () => {
+      expect(ListConversationsQuerySchema.safeParse({ contactId: 'abc' }).success).toBe(false);
+    });
   });
 
   describe('UpdateConversationSchema', () => {

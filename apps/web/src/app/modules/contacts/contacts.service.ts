@@ -56,6 +56,22 @@ export interface PhoneValidationResult {
   duplicates: number;
 }
 
+/** Conversa resumida usada no histórico do contato (T-042). */
+export interface ContactConversation {
+  id: string;
+  instanceId: string;
+  status: string;
+  unreadCount: number;
+  lastMessageAt: string | null;
+  lastMessagePreview: string | null;
+  createdAt: string;
+}
+
+export interface ContactConversationsResponse {
+  data: ContactConversation[];
+  total: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ContactsService {
   private api = inject(ApiService);
@@ -98,5 +114,16 @@ export class ContactsService {
 
   exportCsv(search?: string): Observable<string> {
     return this.api.getText('/contacts/export', search ? { search } : undefined);
+  }
+
+  /**
+   * Histórico de conversas de um contato (T-042). Reusa o endpoint de conversas
+   * do T-036 com o novo filtro `?contactId=`.
+   */
+  conversations(contactId: string): Observable<ContactConversationsResponse> {
+    return this.api.get<ContactConversationsResponse>('/conversations', {
+      contactId,
+      pageSize: 20,
+    });
   }
 }

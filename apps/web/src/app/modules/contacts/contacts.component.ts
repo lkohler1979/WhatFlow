@@ -1,6 +1,13 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ContactsService, type Contact, type ContactImportResult } from './contacts.service';
+import {
+  ContactsService,
+  type Contact,
+  type ContactImportResult,
+  type ContactConversation,
+} from './contacts.service';
+import { forkJoin, of, type Observable } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { TagAutocompleteComponent } from '@shared/components/tag-autocomplete/tag-autocomplete.component';
 import { TagsService, type Tag } from '@shared/services/tags.service';
 
@@ -120,6 +127,34 @@ interface CsvPreview {
           >
             {{ saving() ? 'Salvando...' : 'Salvar' }}
           </button>
+
+          @if (editing()) {
+            <div class="history">
+              <span>Histórico de conversas</span>
+              @if (historyLoading()) {
+                <p class="muted">Carregando histórico...</p>
+              } @else if (history().length === 0) {
+                <p class="muted">Nenhuma conversa para este contato.</p>
+              } @else {
+                <ul class="history-list">
+                  @for (conv of history(); track conv.id) {
+                    <li>
+                      <span class="badge">{{ conv.status }}</span>
+                      <span class="history-preview">{{
+                        conv.lastMessagePreview || 'Sem mensagens'
+                      }}</span>
+                      <span class="muted history-date">{{
+                        conv.lastMessageAt ? formatDate(conv.lastMessageAt) : '-'
+                      }}</span>
+                      @if (conv.unreadCount > 0) {
+                        <span class="unread">{{ conv.unreadCount }}</span>
+                      }
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+          }
         </form>
 
         <div class="importer">
@@ -181,6 +216,54 @@ interface CsvPreview {
         </div>
       </section>
 
+      @if (selectedCount() > 0) {
+        <div class="bulk-bar">
+          <strong>{{ selectedCount() }} selecionado(s)</strong>
+          <div class="bulk-tag">
+            <label class="muted" for="bulkTag">Tag</label>
+            <select
+              id="bulkTag"
+              class="wf-input"
+              [value]="bulkTagId() ?? ''"
+              (change)="onBulkTag($event)"
+            >
+              <option value="">Escolha uma tag</option>
+              @for (tag of allTags(); track tag.id) {
+                <option [value]="tag.id">{{ tag.name }}</option>
+              }
+            </select>
+            <button
+              type="button"
+              class="wf-btn"
+              [disabled]="!bulkTagId() || bulkBusy()"
+              (click)="bulkApplyTag()"
+            >
+              Aplicar tag
+            </button>
+            <button
+              type="button"
+              class="wf-btn"
+              [disabled]="!bulkTagId() || bulkBusy()"
+              (click)="bulkRemoveTag()"
+            >
+              Remover tag
+            </button>
+          </div>
+          <button
+            type="button"
+            class="wf-btn wf-btn--danger"
+            [disabled]="bulkBusy()"
+            (click)="bulkDelete()"
+          >
+            Excluir selecionados
+          </button>
+          <button type="button" class="link-btn" (click)="clearSelection()">Limpar seleção</button>
+          @if (bulkBusy()) {
+            <span class="muted">{{ bulkProgress() }}</span>
+          }
+        </div>
+      }
+
       <section class="list">
         @if (loading()) {
           <p class="muted">Carregando...</p>
@@ -190,6 +273,14 @@ interface CsvPreview {
           <table>
             <thead>
               <tr>
+                <th class="check-col">
+                  <input
+                    type="checkbox"
+                    [checked]="allPageSelected()"
+                    [indeterminate]="somePageSelected()"
+                    (change)="toggleSelectPage($event)"
+                  />
+                </th>
                 <th>Nome</th>
                 <th>Telefone</th>
                 <th>E-mail</th>
@@ -202,6 +293,13 @@ interface CsvPreview {
             <tbody>
               @for (contact of contacts(); track contact.id) {
                 <tr [class.active]="editing()?.id === contact.id">
+                  <td class="check-col">
+                    <input
+                      type="checkbox"
+                      [checked]="isSelected(contact.id)"
+                      (change)="toggleSelect(contact.id, $event)"
+                    />
+                  </td>
                   <td>{{ contact.name || 'Sem nome' }}</td>
                   <td>{{ contact.phone }}</td>
                   <td>{{ contact.email || '-' }}</td>
@@ -405,6 +503,63 @@ interface CsvPreview {
         color: #b42318;
         margin-bottom: 0.75rem;
       }
+      .history {
+        display: grid;
+        gap: 0.4rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        border-top: 1px solid #eef2f7;
+        padding-top: 0.75rem;
+      }
+      .history-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: grid;
+        gap: 0.4rem;
+        font-weight: 400;
+      }
+      .history-list li {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8rem;
+      }
+      .history-preview {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .history-date {
+        font-size: 0.72rem;
+      }
+      .unread {
+        background: #2563eb;
+        color: #fff;
+        border-radius: 999px;
+        padding: 0 0.4rem;
+        font-size: 0.7rem;
+      }
+      .bulk-bar {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        margin-bottom: 1rem;
+      }
+      .bulk-tag {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .check-col {
+        width: 1.5rem;
+      }
       @media (max-width: 900px) {
         .workspace {
           grid-template-columns: 1fr;
@@ -456,6 +611,28 @@ export class ContactsComponent implements OnInit {
   csvPreview = signal<CsvPreview | null>(null);
   importResult = signal<ContactImportResult | null>(null);
   totalPages = computed(() => Math.max(1, Math.ceil(this.total() / this.pageSize)));
+
+  // Histórico de conversas do contato em edição (T-042).
+  history = signal<ContactConversation[]>([]);
+  historyLoading = signal(false);
+
+  // Seleção múltipla + bulk actions (T-042). Persiste IDs entre páginas.
+  selectedIds = signal<Set<string>>(new Set());
+  bulkTagId = signal<string | null>(null);
+  bulkBusy = signal(false);
+  bulkProgress = signal('');
+  selectedCount = computed(() => this.selectedIds().size);
+  allPageSelected = computed(() => {
+    const ids = this.selectedIds();
+    const rows = this.contacts();
+    return rows.length > 0 && rows.every(c => ids.has(c.id));
+  });
+  somePageSelected = computed(() => {
+    const ids = this.selectedIds();
+    const rows = this.contacts();
+    const n = rows.filter(c => ids.has(c.id)).length;
+    return n > 0 && n < rows.length;
+  });
 
   searchCtrl = this.fb.nonNullable.control('');
   form = this.fb.nonNullable.group({
@@ -582,6 +759,7 @@ export class ContactsComponent implements OnInit {
 
   openNew(): void {
     this.editing.set(null);
+    this.history.set([]);
     this.form.reset({ phone: '', name: '', email: '', isBlocked: false, isOptedOut: false });
   }
 
@@ -593,6 +771,23 @@ export class ContactsComponent implements OnInit {
       email: contact.email ?? '',
       isBlocked: contact.isBlocked,
       isOptedOut: contact.isOptedOut,
+    });
+    this.loadHistory(contact.id);
+  }
+
+  /** Carrega o histórico de conversas do contato (T-042 — reusa ?contactId=). */
+  private loadHistory(contactId: string): void {
+    this.history.set([]);
+    this.historyLoading.set(true);
+    this.svc.conversations(contactId).subscribe({
+      next: res => {
+        this.history.set(res.data);
+        this.historyLoading.set(false);
+      },
+      error: () => {
+        this.history.set([]);
+        this.historyLoading.set(false);
+      },
     });
   }
 
@@ -636,6 +831,105 @@ export class ContactsComponent implements OnInit {
       error: (e: { error?: { message?: string } }) =>
         this.error.set(e?.error?.message ?? 'Falha ao excluir contato'),
     });
+  }
+
+  // ---- Seleção múltipla + bulk actions (T-042) ----
+
+  isSelected(id: string): boolean {
+    return this.selectedIds().has(id);
+  }
+
+  toggleSelect(id: string, event: Event): void {
+    const checked = (event.target as HTMLInputElement).checked;
+    this.selectedIds.update(prev => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  toggleSelectPage(event: Event): void {
+    const checked = (event.target as HTMLInputElement).checked;
+    const pageIds = this.contacts().map(c => c.id);
+    this.selectedIds.update(prev => {
+      const next = new Set(prev);
+      if (checked) pageIds.forEach(id => next.add(id));
+      else pageIds.forEach(id => next.delete(id));
+      return next;
+    });
+  }
+
+  clearSelection(): void {
+    this.selectedIds.set(new Set());
+    this.bulkTagId.set(null);
+    this.bulkProgress.set('');
+  }
+
+  onBulkTag(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    this.bulkTagId.set(value || null);
+  }
+
+  bulkApplyTag(): void {
+    const tagId = this.bulkTagId();
+    if (!tagId) return;
+    this.runBulk(id => this.tagsSvc.attachToContact(id, tagId), 'Aplicando tag');
+  }
+
+  bulkRemoveTag(): void {
+    const tagId = this.bulkTagId();
+    if (!tagId) return;
+    this.runBulk(id => this.tagsSvc.detachFromContact(id, tagId), 'Removendo tag');
+  }
+
+  bulkDelete(): void {
+    const ids = [...this.selectedIds()];
+    if (ids.length === 0) return;
+    if (!confirm(`Excluir ${ids.length} contato(s) selecionado(s)?`)) return;
+    this.runBulk(id => this.svc.remove(id), 'Excluindo');
+  }
+
+  /**
+   * Executa uma ação por contato selecionado em lotes (concorrência limitada),
+   * para não disparar ~100 requests simultâneos nem travar a UI.
+   */
+  private runBulk(op: (id: string) => Observable<unknown>, label: string): void {
+    const ids = [...this.selectedIds()];
+    if (ids.length === 0 || this.bulkBusy()) return;
+    this.bulkBusy.set(true);
+    this.error.set(null);
+    const batchSize = 10;
+    let done = 0;
+    let failed = 0;
+
+    const runBatch = (start: number): void => {
+      const slice = ids.slice(start, start + batchSize);
+      if (slice.length === 0) {
+        this.bulkBusy.set(false);
+        this.bulkProgress.set('');
+        this.clearSelection();
+        if (failed > 0) this.error.set(`${failed} item(ns) falharam na ação em lote`);
+        this.load();
+        return;
+      }
+      this.bulkProgress.set(`${label}: ${done}/${ids.length}`);
+      forkJoin(
+        slice.map(id =>
+          op(id).pipe(
+            catchError(() => {
+              failed += 1;
+              return of(null);
+            }),
+          ),
+        ),
+      ).subscribe(() => {
+        done += slice.length;
+        runBatch(start + batchSize);
+      });
+    };
+
+    runBatch(0);
   }
 
   onFile(event: Event): void {

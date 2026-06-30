@@ -68,6 +68,20 @@ describe('conversationsService.list', () => {
       contact: { name: 'João', phone: '5527999887766' },
     });
   });
+
+  it('repassa contactId ao repositório (histórico do contato — T-042)', async () => {
+    mockRepo.listByTenant.mockResolvedValue({ data: [conv()], total: 1 });
+    await conversationsService.list('t1', {
+      contactId: 'ct1',
+      page: 1,
+      pageSize: 20,
+    } as never);
+
+    expect(mockRepo.listByTenant).toHaveBeenCalledWith(
+      't1',
+      expect.objectContaining({ contactId: 'ct1' }),
+    );
+  });
 });
 
 describe('conversationsService.get', () => {

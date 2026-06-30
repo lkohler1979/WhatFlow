@@ -49,6 +49,7 @@ export const conversationsService = {
       status: query.status,
       instanceId: query.instanceId,
       assignedToUserId: query.assignedToUserId,
+      contactId: query.contactId,
       botActive: query.botActive,
       search: query.search,
       page: query.page,

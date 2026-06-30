@@ -8,6 +8,8 @@ export const ListConversationsQuerySchema = z.object({
   status: ConversationStatusEnum.optional(),
   instanceId: z.string().uuid().optional(),
   assignedToUserId: z.string().uuid().optional(),
+  /** Filtra conversas de um contato específico (histórico do contato — T-042). */
+  contactId: z.string().uuid().optional(),
   /** Filtra por bot ligado/desligado. Aceita "true"/"false" em querystring. */
   botActive: z
     .enum(['true', 'false'])
