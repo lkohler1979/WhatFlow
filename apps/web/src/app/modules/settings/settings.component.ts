@@ -1,12 +1,16 @@
 import { Component } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'wf-settings',
   standalone: true,
+  imports: [RouterLink],
   template: `
     <section class="page-placeholder">
       <h1>Configurações</h1>
-      <p>Módulo em construção — Sprint futuro.</p>
+      <nav class="settings-nav">
+        <a routerLink="ai" class="wf-btn wf-btn--primary">Configuração de IA</a>
+      </nav>
     </section>
   `,
   styles: [
@@ -16,10 +20,11 @@ import { Component } from '@angular/core';
       }
       h1 {
         font-size: 1.5rem;
-        margin-bottom: 0.5rem;
+        margin-bottom: 1rem;
       }
-      p {
-        opacity: 0.7;
+      .settings-nav {
+        display: flex;
+        gap: 0.75rem;
       }
     `,
   ],

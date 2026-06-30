@@ -31,20 +31,31 @@ function toAppError(err: unknown): AppError {
 
 let _client: AxiosInstance | null = null;
 
-function getOllamaClient(): AxiosInstance {
-  if (_client) return _client;
-  _client = axios.create({
-    baseURL: config.OLLAMA_BASE_URL,
+function buildClient(baseURL: string): AxiosInstance {
+  const client = axios.create({
+    baseURL,
     headers: { 'Content-Type': 'application/json' },
     timeout: config.AI_TIMEOUT_MS,
   });
-  _client.interceptors.response.use(
+  client.interceptors.response.use(
     res => res,
     err => {
       logger.error({ err: err?.response?.data, url: err?.config?.url }, 'Ollama API error');
       return Promise.reject(err);
     },
   );
+  return client;
+}
+
+/**
+ * Cliente Ollama.
+ * - Sem override (config global): cliente memoizado (singleton).
+ * - Com override de baseUrl por tenant (T-029): cliente por chamada, sem tocar
+ *   no singleton. (Ollama não usa apiKey.)
+ */
+function getOllamaClient(opts: AiChatOptions): AxiosInstance {
+  if (opts.baseUrl) return buildClient(opts.baseUrl);
+  if (!_client) _client = buildClient(config.OLLAMA_BASE_URL);
   return _client;
 }
 
@@ -62,7 +73,7 @@ export const ollamaAdapter: AiAdapter = {
   provider: 'ollama',
 
   async chat(messages: AiMessage[], opts: AiChatOptions = {}): Promise<AiResponse> {
-    const client = getOllamaClient();
+    const client = getOllamaClient(opts);
     const model = opts.model ?? config.OLLAMA_DEFAULT_MODEL;
     const payload: Record<string, unknown> = {
       model,

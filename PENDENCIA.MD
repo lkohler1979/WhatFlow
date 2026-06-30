@@ -30,6 +30,7 @@
 |---|------|---------|
 | P-02 | **Rotacionar `SUPABASE_SERVICE_ROLE_KEY`** | A chave passou por chat/disco. Supabase → Settings → API → roll key. Atualizar `.env` e `apps/api/.env`. |
 | P-03 | **Rotacionar senha do banco** | Idem (Settings → Database → Reset password). Atualizar `DATABASE_URL`/`DIRECT_URL` (lembrar do URL-encode de `%`→`%25`, `&`→`%26`). |
+| P-20 | **Rotacionar `GROQ_API_KEY`** | A chave da Groq passou pelo chat (2026-06-30) e está só em `.env`/`apps/api/.env` (gitignored). Revogar/rotacionar no console da Groq quando possível e atualizar os `.env`. |
 
 ## 🧩 Frontend — completar Sprint 1 (T-009 / T-010)
 

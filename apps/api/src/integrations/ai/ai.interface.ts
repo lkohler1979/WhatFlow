@@ -24,6 +24,16 @@ export interface AiChatOptions {
   maxTokens?: number;
   /** Timeout (ms) específico desta chamada — sobrescreve o default do config. */
   timeoutMs?: number;
+  /**
+   * Override da credencial por chamada (config de IA por tenant — T-029).
+   * Quando ausente, o adaptador cai no `config` global.
+   */
+  apiKey?: string;
+  /**
+   * Override da base URL por chamada (Ollama/OpenAI-compatible por tenant).
+   * Quando ausente, o adaptador cai no `config` global.
+   */
+  baseUrl?: string;
 }
 
 export interface AiAdapter {

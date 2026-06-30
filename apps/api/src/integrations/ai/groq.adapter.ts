@@ -36,25 +36,40 @@ function toAppError(err: unknown): AppError {
   );
 }
 
+const GROQ_DEFAULT_BASE_URL = 'https://api.groq.com/openai/v1';
+
 let _client: AxiosInstance | null = null;
 
-function getGroqClient(): AxiosInstance {
-  if (_client) return _client;
-  _client = axios.create({
-    baseURL: 'https://api.groq.com/openai/v1',
+function buildClient(apiKey: string, baseURL: string): AxiosInstance {
+  const client = axios.create({
+    baseURL,
     headers: {
-      Authorization: `Bearer ${config.GROQ_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     timeout: config.AI_TIMEOUT_MS,
   });
-  _client.interceptors.response.use(
+  client.interceptors.response.use(
     res => res,
     err => {
       logger.error({ err: err?.response?.data, url: err?.config?.url }, 'Groq API error');
       return Promise.reject(err);
     },
   );
+  return client;
+}
+
+/**
+ * Cliente Groq/OpenAI-compatible.
+ * - Sem override (config global): cliente memoizado (singleton).
+ * - Com override de apiKey/baseUrl por tenant (T-029): cliente por chamada,
+ *   sem tocar no singleton — preserva o caminho default.
+ */
+function getGroqClient(opts: AiChatOptions): AxiosInstance {
+  if (opts.apiKey || opts.baseUrl) {
+    return buildClient(opts.apiKey ?? config.GROQ_API_KEY, opts.baseUrl ?? GROQ_DEFAULT_BASE_URL);
+  }
+  if (!_client) _client = buildClient(config.GROQ_API_KEY, GROQ_DEFAULT_BASE_URL);
   return _client;
 }
 
@@ -71,7 +86,7 @@ export const groqAdapter: AiAdapter = {
   provider: 'groq',
 
   async chat(messages: AiMessage[], opts: AiChatOptions = {}): Promise<AiResponse> {
-    const client = getGroqClient();
+    const client = getGroqClient(opts);
     const model = opts.model ?? config.GROQ_MODEL;
     const payload: Record<string, unknown> = {
       model,
