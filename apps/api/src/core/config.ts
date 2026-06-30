@@ -35,7 +35,7 @@ const envSchema = z.object({
     .transform(v => v === 'true'),
   AI_CACHE_TTL_MS: z.coerce.number().default(300_000),
   GROQ_API_KEY: z.string().default(''),
-  GROQ_MODEL: z.string().default('llama-3.1-70b-versatile'),
+  GROQ_MODEL: z.string().default('llama-3.3-70b-versatile'),
   OLLAMA_BASE_URL: z.string().default('http://localhost:11434'),
   OLLAMA_DEFAULT_MODEL: z.string().default('mistral'),
   AI_ENCRYPTION_KEY: z.string().min(32),

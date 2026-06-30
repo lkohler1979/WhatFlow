@@ -261,7 +261,7 @@ components:
       properties:
         id:            { type: string, format: uuid }
         provider:      { type: string, enum: [GROQ, OLLAMA, OPENAI_COMPATIBLE] }
-        model:         { type: string, example: "llama-3.1-70b-versatile" }
+        model:         { type: string, example: "llama-3.3-70b-versatile" }
         baseUrl:       { type: string, nullable: true }
         systemPrompt:  { type: string, nullable: true }
         maxTokens:     { type: integer }

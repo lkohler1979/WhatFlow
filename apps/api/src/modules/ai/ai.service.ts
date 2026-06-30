@@ -31,7 +31,7 @@ function defaultView(): AiConfigView {
   return {
     id: null,
     provider: 'GROQ',
-    model: 'llama-3.1-70b-versatile',
+    model: 'llama-3.3-70b-versatile',
     apiKeyMask: null,
     hasApiKey: false,
     baseUrl: null,

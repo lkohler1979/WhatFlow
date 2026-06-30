@@ -16,7 +16,7 @@ em massa, integrar IA generativa gratuita e gerenciar atendimento humano via inb
 | Frontend SPA | Angular + Angular Material | Angular 17+ Standalone Components |
 | Banco de dados | Supabase (PostgreSQL) | PostgreSQL 15, Auth, Realtime, Storage |
 | WhatsApp Gateway | Evolution API | v2, self-hosted |
-| IA principal | Groq API | llama-3.1-70b-versatile (free tier) |
+| IA principal | Groq API | llama-3.3-70b-versatile (free tier) |
 | IA alternativa | Ollama local | Mistral 7B / Phi-3 |
 | Filas assíncronas | BullMQ + Redis | Para campanhas em massa |
 | ORM | Prisma | Migrations + type-safe queries |
@@ -141,7 +141,7 @@ O `tenant_id` do JWT é usado pela função `get_current_tenant_id()` em todas a
 ### Groq API (IA gratuita)
 - Base URL: `https://api.groq.com/openai/v1`
 - Auth: header `Authorization: Bearer GROQ_API_KEY`
-- Modelo padrão: `llama-3.1-70b-versatile`
+- Modelo padrão: `llama-3.3-70b-versatile`
 - Endpoint: `POST /chat/completions` (formato OpenAI-compatible)
 - Rate limit free: 30 req/min, 14.400 req/dia
 
