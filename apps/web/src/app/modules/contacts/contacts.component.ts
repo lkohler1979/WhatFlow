@@ -1,6 +1,8 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ContactsService, type Contact, type ContactImportResult } from './contacts.service';
+import { TagAutocompleteComponent } from '@shared/components/tag-autocomplete/tag-autocomplete.component';
+import { TagsService, type Tag } from '@shared/services/tags.service';
 
 interface CsvPreview {
   headers: string[];
@@ -11,7 +13,7 @@ interface CsvPreview {
 @Component({
   selector: 'wf-contacts',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, TagAutocompleteComponent],
   template: `
     <section class="page">
       <header class="page-head">
@@ -40,6 +42,20 @@ interface CsvPreview {
           />
           <button type="submit" class="wf-btn">Buscar</button>
         </form>
+        <div class="filter">
+          <label class="muted" for="tagFilter">Filtrar por tag</label>
+          <select
+            id="tagFilter"
+            class="wf-input"
+            [value]="tagFilter() ?? ''"
+            (change)="onTagFilter($event)"
+          >
+            <option value="">Todas</option>
+            @for (tag of allTags(); track tag.id) {
+              <option [value]="tag.id">{{ tag.name }}</option>
+            }
+          </select>
+        </div>
         <div class="pager">
           <button type="button" class="wf-btn" (click)="prevPage()" [disabled]="page() <= 1">
             Anterior
@@ -86,6 +102,17 @@ interface CsvPreview {
               Opt-out
             </label>
           </div>
+          @if (editing()) {
+            <div class="tags-field">
+              <span>Tags</span>
+              <wf-tag-autocomplete
+                [selected]="editingTags()"
+                (select)="attachTag($event)"
+                (create)="createAndAttach($event)"
+                (remove)="detachTag($event)"
+              />
+            </div>
+          }
           <button
             class="wf-btn wf-btn--primary"
             type="submit"
@@ -166,6 +193,7 @@ interface CsvPreview {
                 <th>Nome</th>
                 <th>Telefone</th>
                 <th>E-mail</th>
+                <th>Tags</th>
                 <th>Status</th>
                 <th>Atualizado</th>
                 <th></th>
@@ -177,6 +205,18 @@ interface CsvPreview {
                   <td>{{ contact.name || 'Sem nome' }}</td>
                   <td>{{ contact.phone }}</td>
                   <td>{{ contact.email || '-' }}</td>
+                  <td>
+                    @for (tag of contact.tags; track tag.id) {
+                      <span
+                        class="tag-chip"
+                        [style.background]="tag.color + '22'"
+                        [style.color]="tag.color"
+                        >{{ tag.name }}</span
+                      >
+                    } @empty {
+                      <span class="muted">-</span>
+                    }
+                  </td>
                   <td>
                     <span
                       class="badge"
@@ -235,7 +275,29 @@ interface CsvPreview {
         flex-wrap: wrap;
       }
       .search {
-        min-width: min(520px, 100%);
+        min-width: min(420px, 100%);
+      }
+      .filter {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .filter select {
+        min-width: 160px;
+      }
+      .tags-field {
+        display: grid;
+        gap: 0.35rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+      .tag-chip {
+        display: inline-flex;
+        border-radius: 999px;
+        padding: 0.12rem 0.5rem;
+        font-size: 0.72rem;
+        font-weight: 600;
+        margin: 0 0.2rem 0.2rem 0;
       }
       .workspace {
         display: grid;
@@ -367,6 +429,7 @@ interface CsvPreview {
 })
 export class ContactsComponent implements OnInit {
   private svc = inject(ContactsService);
+  private tagsSvc = inject(TagsService);
   private fb = inject(FormBuilder);
 
   contacts = signal<Contact[]>([]);
@@ -378,6 +441,17 @@ export class ContactsComponent implements OnInit {
   importing = signal(false);
   error = signal<string | null>(null);
   editing = signal<Contact | null>(null);
+  allTags = signal<Tag[]>([]);
+  tagFilter = signal<string | null>(null);
+  /** Tags do contato em edição (espelha editing()?.tags). */
+  editingTags = computed<Tag[]>(() =>
+    (this.editing()?.tags ?? []).map(t => ({
+      id: t.id,
+      name: t.name,
+      color: t.color,
+      createdAt: '',
+    })),
+  );
   csvContent = signal<string | null>(null);
   csvPreview = signal<CsvPreview | null>(null);
   importResult = signal<ContactImportResult | null>(null);
@@ -393,14 +467,27 @@ export class ContactsComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.loadTags();
     this.load();
+  }
+
+  loadTags(): void {
+    this.tagsSvc.list().subscribe({
+      next: tags => this.allTags.set(tags),
+      error: () => this.allTags.set([]),
+    });
   }
 
   load(): void {
     this.loading.set(true);
     this.error.set(null);
     this.svc
-      .list({ search: this.searchCtrl.value.trim(), page: this.page(), pageSize: this.pageSize })
+      .list({
+        search: this.searchCtrl.value.trim(),
+        tagId: this.tagFilter() ?? undefined,
+        page: this.page(),
+        pageSize: this.pageSize,
+      })
       .subscribe({
         next: res => {
           this.contacts.set(res.data);
@@ -417,6 +504,68 @@ export class ContactsComponent implements OnInit {
   search(): void {
     this.page.set(1);
     this.load();
+  }
+
+  onTagFilter(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    this.tagFilter.set(value || null);
+    this.page.set(1);
+    this.load();
+  }
+
+  /** Anexa uma tag existente ao contato em edição e recarrega a linha. */
+  attachTag(tag: Tag): void {
+    const contact = this.editing();
+    if (!contact) return;
+    this.tagsSvc.attachToContact(contact.id, tag.id).subscribe({
+      next: () => this.refreshEditing(contact.id),
+      error: (e: { error?: { message?: string } }) =>
+        this.error.set(e?.error?.message ?? 'Falha ao aplicar tag'),
+    });
+  }
+
+  /** Remove a tag do contato em edição. */
+  detachTag(tag: Tag): void {
+    const contact = this.editing();
+    if (!contact) return;
+    this.tagsSvc.detachFromContact(contact.id, tag.id).subscribe({
+      next: () => this.refreshEditing(contact.id),
+      error: (e: { error?: { message?: string } }) =>
+        this.error.set(e?.error?.message ?? 'Falha ao remover tag'),
+    });
+  }
+
+  /** Cria uma tag inline e já a anexa ao contato em edição. */
+  createAndAttach(name: string): void {
+    const contact = this.editing();
+    if (!contact) return;
+    this.tagsSvc.create({ name }).subscribe({
+      next: tag => {
+        this.allTags.update(tags => [...tags, tag].sort((a, b) => a.name.localeCompare(b.name)));
+        this.attachTag(tag);
+      },
+      error: (e: { error?: { message?: string } }) =>
+        this.error.set(e?.error?.message ?? 'Falha ao criar tag'),
+    });
+  }
+
+  /** Recarrega a lista e re-seleciona o contato editado (tags atualizadas). */
+  private refreshEditing(contactId: string): void {
+    this.svc
+      .list({
+        search: this.searchCtrl.value.trim(),
+        tagId: this.tagFilter() ?? undefined,
+        page: this.page(),
+        pageSize: this.pageSize,
+      })
+      .subscribe({
+        next: res => {
+          this.contacts.set(res.data);
+          this.total.set(res.total);
+          const refreshed = res.data.find(c => c.id === contactId);
+          if (refreshed) this.editing.set(refreshed);
+        },
+      });
   }
 
   prevPage(): void {

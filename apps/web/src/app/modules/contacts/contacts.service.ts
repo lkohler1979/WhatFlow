@@ -63,6 +63,7 @@ export class ContactsService {
   list(
     params: {
       search?: string;
+      tagId?: string;
       page?: number;
       pageSize?: number;
     } = {},
@@ -71,6 +72,7 @@ export class ContactsService {
       page: params.page ?? 1,
       pageSize: params.pageSize ?? 25,
       ...(params.search ? { search: params.search } : {}),
+      ...(params.tagId ? { tagId: params.tagId } : {}),
     });
   }
 

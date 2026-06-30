@@ -125,7 +125,7 @@
 ### ÉPICO 5.1 — Inbox e Atendimento Humano
 | ID | Tarefa | Critérios de Aceite | Prio | Esforço | Deps | Status |
 |---|---|---|---|---|---|---|
-| T-036 | API de conversas e mensagens | Conversas filtradas. Mensagens paginadas (cursor-based). Agente envia mensagem. | Alta | G | T-022 | ⬜ |
+| T-036 | API de conversas e mensagens | Conversas filtradas. Mensagens paginadas (cursor-based). Agente envia mensagem. | Alta | G | T-022 | ✅ (módulos `conversations` + `messages` em `/v1/conversations` (+ `/:id/messages` aninhado). Lista filtrada (status/instance/assignedTo/botActive/search por nome+telefone), `PATCH` (status/atribuição → grava resolvedAt), `POST /:id/read`. Mensagens **cursor-based** (cursor=id, limit+1, nextCursor). Envio do agente: 404/409 INSTANCE_NOT_CONNECTED → `sendText` → OUTBOUND SENT (sentByAgentId) + touch + emit `message:new`. 25 testes (217 no total)) |
 | T-037 | Tela Inbox com layout 3 colunas | Inbox carrega. Scroll infinito funciona. Painel de contato exibe dados corretos. | Alta | XG | T-036 | ⬜ |
 | T-038 | Realtime no Inbox (Supabase Realtime) | Mensagem recebida aparece em < 1s sem refresh. Badge de não lidos atualiza. | Alta | G | T-037 | ⬜ |
 | T-039 | Transferência bot↔humano | Agente desativa bot. Agente responde. Bot não interfere. Reativação funciona. | Alta | M | T-037 | ⬜ |
@@ -136,7 +136,7 @@
 |---|---|---|---|---|---|---|
 | T-041 | CRUD completo de contatos | Importar 500 contatos em < 15s. Busca por nome/número funciona. Export correto. | Alta | G | T-004 | ✅ (API `/v1/contacts`: list/search/paginação, create/get/update/delete, import CSV com validação/duplicados e export CSV; tela de contatos com busca, edição, preview/importação e export. Backend build verde + testes `contacts` 9/9; web build verde) |
 | T-042 | Tela de contatos e segmentação | Filtro por tag funciona. Histórico do contato visível. Bulk action em 100 contatos. | Alta | G | T-041 | ⬜ |
-| T-043 | Sistema de tags global | Tag criada aparece no autocomplete. Filtro por tag funciona em contatos e conversas. | Média | M | T-041 | ⬜ |
+| T-043 | Sistema de tags global | Tag criada aparece no autocomplete. Filtro por tag funciona em contatos e conversas. | Média | M | T-041 | ✅ (módulo `tags`: CRUD `/v1/tags` (`?q=` autocomplete, nome único→409), attach/detach a contato (`/v1/contacts/:id/tags`), filtro `?tagId=` em contatos. Frontend: `TagsService` + `wf-tag-autocomplete` reutilizável (debounce, criar inline, chips), integrado na tela de contatos (coluna/filtro/editor). 28 testes. Tags em CONVERSAS ficam p/ T-040 — `ConversationTag` e o autocomplete já prontos p/ reuso) |
 
 ---
 
