@@ -1,36 +1,142 @@
-version: '3.9'
+# ─────────────────────────────────────────────────────────────────────────────
+# WhatFlow — stack de PRODUÇÃO (VPS Ubuntu + Cloudflare na frente).
+#
+# Uso:
+#   cp .env.prod.example .env.prod   # e preencha os valores
+#   docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
+#
+# Só o `nginx` expõe portas (80/443). API, Redis, Evolution e Bull-Board ficam
+# internos na rede do compose. Ver docs/DEPLOY.md para o passo a passo + Cloudflare.
+# ─────────────────────────────────────────────────────────────────────────────
 
 services:
+  # ── Reverse proxy + SPA Angular (único ponto público) ──
+  nginx:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile.prod
+      args:
+        API_URL: /v1
+        SUPABASE_URL: ${SUPABASE_PUBLIC_URL}
+        SUPABASE_ANON_KEY: ${SUPABASE_PUBLIC_ANON_KEY}
+    image: whatflow-web:prod
+    container_name: whatflow-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Certificado de origin da Cloudflare (modo Full strict). Opcional no 1º boot.
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  # ── API (Express + tsx) — interna ──
   api:
     build:
-      context: ./apps/api
-      dockerfile: Dockerfile
-      target: production
+      context: .
+      dockerfile: apps/api/Dockerfile.prod
+    image: whatflow-api:prod
     container_name: whatflow-api
-    ports:
-      - "3000:3000"
-    env_file: .env.production
+    restart: always
+    env_file: .env.prod
+    environment:
+      NODE_ENV: production
+      REDIS_URL: redis://redis:6379
+      # Evolution local do compose (sobrepõe a do .env.prod, se houver):
+      EVOLUTION_API_URL: http://evolution-api:8080
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
+      # URL interna que a Evolution usa para devolver webhooks à API:
+      WEBHOOK_BASE_URL: http://api:3000/v1
     depends_on:
       redis:
         condition: service_healthy
-    restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 512M
+      evolution-postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
     container_name: whatflow-redis
+    restart: always
+    command: redis-server --save 60 1 --loglevel warning
     volumes:
       - redis_data:/data
-    command: redis-server --save 60 1 --requirepass ${REDIS_PASSWORD}
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
-      timeout: 5s
+      timeout: 3s
       retries: 5
+
+  # Painel das filas BullMQ — interno (exponha atrás do nginx com auth se precisar).
+  bull-board:
+    image: deadly0/bull-board:latest
+    container_name: whatflow-bull-board
     restart: always
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      - redis
+
+  # ── Evolution API (WhatsApp) + seu Postgres — internos ──
+  evolution-postgres:
+    image: postgres:15-alpine
+    container_name: whatflow-evolution-pg
+    restart: always
+    environment:
+      POSTGRES_USER: evolution
+      POSTGRES_PASSWORD: ${EVOLUTION_PG_PASSWORD:-evolution}
+      POSTGRES_DB: evolution
+    volumes:
+      - evolution_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evolution"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  evolution-api:
+    image: evoapicloud/evolution-api:v2.3.7
+    container_name: whatflow-evolution
+    restart: always
+    environment:
+      SERVER_URL: ${EVOLUTION_SERVER_URL:-http://evolution-api:8080}
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://evolution:${EVOLUTION_PG_PASSWORD:-evolution}@evolution-postgres:5432/evolution?schema=public
+      DATABASE_CONNECTION_CLIENT_NAME: whatflow
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://redis:6379/1
+      CACHE_REDIS_PREFIX_KEY: evolution
+      CACHE_LOCAL_ENABLED: "false"
+      DEL_INSTANCE: "false"
+      # Versão do WhatsApp Web — atualizar por wppconnect-team/wa-version.
+      CONFIG_SESSION_PHONE_VERSION: ${CONFIG_SESSION_PHONE_VERSION:-2.3000.1042201107}
+    depends_on:
+      evolution-postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   redis_data:
+  evolution_pg:
+
+networks:
+  default:
+    name: whatflow-prod

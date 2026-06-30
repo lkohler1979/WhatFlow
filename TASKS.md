@@ -161,7 +161,7 @@
 |---|---|---|---|---|---|---|
 | T-049 | Cobertura de testes backend (70%+) | `jest --coverage` mostra ≥ 70% linhas. Pipeline CI bloqueia se < 70%. | Alta | G | T-022, T-028, T-033 | ⬜ |
 | T-050 | Cobertura de testes frontend (60%+) | Karma coverage ≥ 60%. Cypress e2e roda nos 4 fluxos críticos sem falha. | Alta | G | T-026, T-034, T-037 | ⬜ |
-| T-051 | Deploy em produção (Docker + VPS/Cloud) | App acessível via HTTPS. Deploy sem downtime. Rollback em < 2 min. | Alta | G | T-049, T-050 | ⬜ |
+| T-051 | Deploy em produção (Docker + VPS/Cloud) | App acessível via HTTPS. Deploy sem downtime. Rollback em < 2 min. | Alta | G | T-049, T-050 | 🟡 PREPARADO (infra pronta, falta o deploy real no host do usuário): `docker-compose.prod.yml` (nginx público + api/redis/evolution/evolution-pg/bull-board internos), `apps/api/Dockerfile.prod` (slim+openssl, tsx, migrate deploy no start), `apps/web/Dockerfile.prod` (build Angular + envsubst → nginx servindo `dist/web/browser`), `nginx/whatflow.conf` (SPA + proxy `/v1`+`/socket.io` WS, real-IP Cloudflare, gzip, TLS Origin Cert opcional), `.env.prod.example`, runbook `docs/DEPLOY.md` (VPS Ubuntu + Cloudflare Full strict + rollback <2min). `docker compose -f docker-compose.prod.yml config` válido. Falta: VPS+domínio+Origin Cert+segredos (ação do usuário) |
 | T-052 | Documentação técnica e README | Dev novo roda o projeto em < 30min seguindo o README. Swagger acessível. | Média | M | T-051 | ⬜ |
 
 ---
