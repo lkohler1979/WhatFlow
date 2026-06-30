@@ -1,0 +1,268 @@
+import {
+  AfterViewChecked,
+  Component,
+  ElementRef,
+  EventEmitter,
+  Input,
+  Output,
+  ViewChild,
+  inject,
+  signal,
+} from '@angular/core';
+import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { Conversation, InboxService, Message } from '../../inbox.service';
+
+const PAGE_SIZE = 30;
+
+@Component({
+  selector: 'wf-chat-window',
+  standalone: true,
+  imports: [ReactiveFormsModule],
+  template: `
+    @if (!conversation) {
+      <div class="empty">
+        <p class="muted">Selecione uma conversa para começar.</p>
+      </div>
+    } @else {
+      <header class="chat-head">
+        <strong>{{ conversation.contact.name || conversation.contact.phone }}</strong>
+        <span class="phone">{{ conversation.contact.phone }}</span>
+      </header>
+
+      <div #scroller class="messages" (scroll)="onScroll($event)">
+        @if (loadingMore()) {
+          <p class="muted center">Carregando histórico...</p>
+        }
+        @if (loading() && messages().length === 0) {
+          <p class="muted center">Carregando mensagens...</p>
+        } @else if (messages().length === 0) {
+          <p class="muted center">Nenhuma mensagem ainda.</p>
+        } @else {
+          @for (msg of messages(); track msg.id) {
+            <div class="bubble-row" [class.out]="msg.direction === 'OUTBOUND'">
+              <div class="bubble" [class.out]="msg.direction === 'OUTBOUND'">
+                <span class="text">{{ msg.content }}</span>
+                <span class="meta">{{ time(msg.timestamp) }}</span>
+              </div>
+            </div>
+          }
+        }
+      </div>
+
+      <form class="composer" [formGroup]="form" (ngSubmit)="send()">
+        <input class="wf-input" formControlName="text" placeholder="Digite uma mensagem..." />
+        <button class="wf-btn wf-btn--primary" type="submit" [disabled]="form.invalid || sending()">
+          {{ sending() ? '...' : 'Enviar' }}
+        </button>
+      </form>
+      @if (sendErr()) {
+        <p class="error">{{ sendErr() }}</p>
+      }
+    }
+  `,
+  styles: [
+    `
+      :host {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+        background: #f5f7fb;
+      }
+      .empty {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .chat-head {
+        padding: 0.8rem 1rem;
+        background: #fff;
+        border-bottom: 1px solid #e4e9f0;
+        display: flex;
+        flex-direction: column;
+      }
+      .chat-head .phone {
+        font-size: 0.75rem;
+        opacity: 0.6;
+      }
+      .messages {
+        flex: 1;
+        overflow-y: auto;
+        min-height: 0;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+      .bubble-row {
+        display: flex;
+        justify-content: flex-start;
+      }
+      .bubble-row.out {
+        justify-content: flex-end;
+      }
+      .bubble {
+        max-width: 70%;
+        padding: 0.5rem 0.7rem;
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+        display: flex;
+        flex-direction: column;
+      }
+      .bubble.out {
+        background: #d9fdd3;
+      }
+      .text {
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .meta {
+        align-self: flex-end;
+        font-size: 0.65rem;
+        opacity: 0.5;
+        margin-top: 0.15rem;
+      }
+      .composer {
+        display: flex;
+        gap: 0.5rem;
+        padding: 0.7rem 1rem;
+        background: #fff;
+        border-top: 1px solid #e4e9f0;
+      }
+      .composer .wf-input {
+        flex: 1;
+        padding: 0.55rem 0.7rem;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        font: inherit;
+      }
+      .muted {
+        opacity: 0.65;
+      }
+      .muted.center {
+        text-align: center;
+      }
+      .error {
+        color: #b42318;
+        padding: 0 1rem 0.6rem;
+        font-size: 0.8rem;
+      }
+    `,
+  ],
+})
+export class ChatWindowComponent implements AfterViewChecked {
+  private svc = inject(InboxService);
+  private fb = inject(FormBuilder);
+
+  @ViewChild('scroller') private scroller?: ElementRef<HTMLElement>;
+  /** Emite quando a conversa aberta foi marcada como lida (para zerar badge na lista). */
+  @Output() read = new EventEmitter<string>();
+
+  messages = signal<Message[]>([]);
+  loading = signal(false);
+  loadingMore = signal(false);
+  sending = signal(false);
+  sendErr = signal<string | null>(null);
+
+  conversation: Conversation | null = null;
+  private nextCursor: string | null = null;
+  private shouldScrollBottom = false;
+  private preserveFromTop = false;
+  private lastScrollHeight = 0;
+
+  form = this.fb.nonNullable.group({
+    text: ['', [Validators.required, Validators.minLength(1)]],
+  });
+
+  /** Chamado pelo InboxComponent quando muda a conversa selecionada. */
+  @Input() set selected(conv: Conversation | null) {
+    this.conversation = conv;
+    this.messages.set([]);
+    this.nextCursor = null;
+    this.sendErr.set(null);
+    this.form.reset({ text: '' });
+    if (conv) {
+      this.loadInitial(conv.id);
+      this.svc.markRead(conv.id).subscribe({
+        next: () => this.read.emit(conv.id),
+        error: () => {},
+      });
+    }
+  }
+
+  ngAfterViewChecked(): void {
+    const el = this.scroller?.nativeElement;
+    if (!el) return;
+    if (this.shouldScrollBottom) {
+      el.scrollTop = el.scrollHeight;
+      this.shouldScrollBottom = false;
+    } else if (this.preserveFromTop) {
+      // Após prepend de histórico, mantém a posição visual do usuário.
+      el.scrollTop = el.scrollHeight - this.lastScrollHeight;
+      this.preserveFromTop = false;
+    }
+  }
+
+  private loadInitial(id: string): void {
+    this.loading.set(true);
+    this.svc.listMessages(id, null, PAGE_SIZE).subscribe({
+      next: res => {
+        this.messages.set(res.data);
+        this.nextCursor = res.nextCursor;
+        this.loading.set(false);
+        this.shouldScrollBottom = true;
+      },
+      error: () => this.loading.set(false),
+    });
+  }
+
+  /** Scroll infinito do histórico: ao rolar para o topo, carrega mais antigas. */
+  onScroll(ev: Event): void {
+    const el = ev.target as HTMLElement;
+    if (el.scrollTop <= 40) this.loadOlder();
+  }
+
+  private loadOlder(): void {
+    if (!this.conversation || !this.nextCursor) return;
+    if (this.loading() || this.loadingMore()) return;
+    this.loadingMore.set(true);
+    this.lastScrollHeight = this.scroller?.nativeElement.scrollHeight ?? 0;
+    this.svc.listMessages(this.conversation.id, this.nextCursor, PAGE_SIZE).subscribe({
+      next: res => {
+        // Histórico mais antigo (cronológico) → prepend mantendo a ordem.
+        this.messages.update(cur => [...res.data, ...cur]);
+        this.nextCursor = res.nextCursor;
+        this.loadingMore.set(false);
+        this.preserveFromTop = true;
+      },
+      error: () => this.loadingMore.set(false),
+    });
+  }
+
+  send(): void {
+    const conv = this.conversation;
+    if (!conv || this.form.invalid) return;
+    const text = this.form.getRawValue().text.trim();
+    if (!text) return;
+    this.sending.set(true);
+    this.sendErr.set(null);
+    this.svc.sendMessage(conv.id, text).subscribe({
+      next: msg => {
+        this.messages.update(cur => [...cur, msg]);
+        this.form.reset({ text: '' });
+        this.sending.set(false);
+        this.shouldScrollBottom = true;
+      },
+      error: (e: { error?: { message?: string } }) => {
+        this.sending.set(false);
+        this.sendErr.set(e?.error?.message ?? 'Falha ao enviar (instância desconectada?)');
+      },
+    });
+  }
+
+  time(iso: string): string {
+    return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+}
