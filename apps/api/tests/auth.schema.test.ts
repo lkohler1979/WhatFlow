@@ -1,4 +1,9 @@
-import { RegisterSchema, LoginSchema, RefreshSchema } from '@modules/auth/auth.schema.js';
+import {
+  ForgotPasswordSchema,
+  LoginSchema,
+  RefreshSchema,
+  RegisterSchema,
+} from '@modules/auth/auth.schema.js';
 
 describe('auth.schema', () => {
   describe('RegisterSchema', () => {
@@ -52,6 +57,16 @@ describe('auth.schema', () => {
     it('exige refreshToken', () => {
       expect(RefreshSchema.safeParse({}).success).toBe(false);
       expect(RefreshSchema.safeParse({ refreshToken: 'abc' }).success).toBe(true);
+    });
+  });
+
+  describe('ForgotPasswordSchema', () => {
+    it('aceita e-mail válido para recuperação de senha', () => {
+      expect(ForgotPasswordSchema.safeParse({ email: 'owner@empresa.com' }).success).toBe(true);
+    });
+
+    it('rejeita e-mail inválido', () => {
+      expect(ForgotPasswordSchema.safeParse({ email: 'nao-eh-email' }).success).toBe(false);
     });
   });
 });

@@ -1,7 +1,7 @@
 # WhatFlow — Pendências (executar depois)
 
 > Itens conhecidos que ficaram em aberto ao fechar o **Sprint 1**.
-> Atualizado em 2026-06-24.
+> Atualizado em 2026-06-30.
 
 ---
 
@@ -37,9 +37,9 @@
 | # | Item | Detalhe |
 |---|------|---------|
 | P-04 | **Design system / Storybook (T-009)** | Tema global, tokens e componentes base documentados (Storybook ou demo page). Hoje há só estilo mínimo. |
-| P-05 | **Breadcrumbs + navegação (T-010)** | Breadcrumbs por rota; estado ativo na sidebar; rótulos das rotas. |
-| P-06 | **`forgot-password` real** | Hoje é stub. Implementar reset via Supabase Auth (`resetPasswordForEmail`) quando SMTP estiver configurado. |
-| P-07 | **Dashboard com métricas reais** | Cards usam placeholder (`—`). Plugar nos endpoints de analytics (Sprint 6). |
+| ~~P-05~~ | ~~Breadcrumbs + navegação (T-010)~~ | ✅ **Resolvido**: `BreadcrumbsComponent` monta trilha por rota, `SidebarNavComponent` usa estado ativo via `RouterLinkActive` e os rótulos principais estão definidos. |
+| ~~P-06~~ | ~~`forgot-password` real~~ | ✅ **Resolvido** (2026-06-30): `POST /v1/auth/forgot-password` dispara `resetPasswordForEmail` via Supabase Auth com redirect para `/auth/reset-password`; frontend ganhou formulário de solicitação e tela para gravar nova senha a partir do link de recuperação. Requer SMTP configurado no Supabase e `supabaseUrl`/`supabaseAnonKey` públicos no environment do web para concluir a troca de senha. |
+| ~~P-07~~ | ~~Dashboard com métricas reais~~ | ✅ **Resolvido**: dashboard consome endpoints de analytics, exibe KPIs reais, gráfico de volume de mensagens e exportação CSV por período. |
 
 ## 🎨 Sprint 3 — Flow Builder (verificação visual)
 
@@ -60,7 +60,7 @@
 | # | Item | Detalhe |
 |---|------|---------|
 | P-11 | **`GET /auth/me` enriquecido** | Hoje retorna `{ id, tenantId, role }`. Opcional: retornar `user` + `tenant` completos (o frontend já persiste o user do login/register, então não é bloqueante). |
-| P-12 | **Migrations no Supabase** | `prisma migrate dev` é interativo-only contra o pooler; o fluxo adotado é **baseline + `prisma migrate deploy`**. Documentar no README para o time. |
+| ~~P-12~~ | ~~Migrations no Supabase~~ | ✅ **Resolvido** (2026-06-30): README documenta o fluxo **baseline + `prisma migrate deploy`**, quickstart passou a usar `npm run prisma:deploy` e os scripts raiz/API agora expõem `prisma:deploy`. |
 | P-13 | **Resolução do `rxjs`** | Mantido via `overrides` (raiz) + `paths` no `tsconfig` do web (conflito 7.8.1 vs 7.8.2). Revisar ao subir versões do Angular/devkit. |
 
 ---

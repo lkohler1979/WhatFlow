@@ -33,8 +33,8 @@ cp .env.example .env
 # 3. Subir Redis
 docker compose up -d redis
 
-# 4. Migrations do banco
-npm run prisma:migrate
+# 4. Aplicar migrations no Supabase
+npm run prisma:deploy
 
 # 5. Iniciar tudo
 npm run dev
@@ -155,10 +155,21 @@ Para instalar o plugin no Claude Code/Cowork: `docs/plugin/whatflow-dev.plugin`
 | `npm run build` | Build produção (todos os workspaces) |
 | `npm run test` | Todos os testes |
 | `npm run lint` | Lint em todos os workspaces |
-| `npm run prisma:migrate` | Cria/aplica migrations |
+| `npm run prisma:migrate` | Cria migrations em ambiente dev |
+| `npm run prisma:deploy` | Aplica migrations existentes no Supabase/produção |
 | `npm run prisma:generate` | Regenera Prisma Client |
 | `npm run prisma:studio` | Interface visual do banco |
 | `docker compose up -d` | Sobe todos os serviços |
+
+---
+
+## 🗄️ Migrations Prisma + Supabase
+
+O fluxo adotado para o Supabase é **baseline + `prisma migrate deploy`**. Use `npm run prisma:deploy` para aplicar migrations já versionadas em bancos compartilhados, staging e produção; esse comando é não interativo e funciona melhor com o pooler do Supabase.
+
+Use `npm run prisma:migrate -- --name nome_da_migration` apenas para criar uma nova migration em ambiente de desenvolvimento controlado. Depois de revisar e commitar a pasta gerada em `apps/api/prisma/migrations`, os demais ambientes devem receber a mudança com `npm run prisma:deploy`.
+
+Evite `prisma migrate reset` contra bancos Supabase compartilhados. Para conferir o schema sem alterar dados, use `npm run prisma:studio` ou rode queries de leitura diretamente no Supabase.
 
 ---
 

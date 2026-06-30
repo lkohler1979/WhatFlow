@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { authService } from './auth.service.js';
-import type { LoginDto, RegisterDto, RefreshDto } from './auth.schema.js';
+import type { ForgotPasswordDto, LoginDto, RegisterDto, RefreshDto } from './auth.schema.js';
 
 /**
  * Controllers: recebem a request (já validada pelo middleware),
@@ -21,6 +21,11 @@ export const authController = {
   async refresh(req: Request, res: Response): Promise<void> {
     const session = await authService.refresh(req.body as RefreshDto);
     res.status(200).json({ session });
+  },
+
+  async forgotPassword(req: Request, res: Response): Promise<void> {
+    await authService.requestPasswordReset(req.body as ForgotPasswordDto);
+    res.status(204).send();
   },
 
   async logout(req: Request, res: Response): Promise<void> {
