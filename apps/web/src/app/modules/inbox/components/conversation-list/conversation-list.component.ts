@@ -2,6 +2,8 @@ import { Component, EventEmitter, Input, OnInit, Output, inject, signal } from '
 import { ReactiveFormsModule, FormBuilder } from '@angular/forms';
 import { debounceTime } from 'rxjs';
 import { Conversation, ConversationStatus, InboxService } from '../../inbox.service';
+import { TagAutocompleteComponent } from '@shared/components/tag-autocomplete/tag-autocomplete.component';
+import type { Tag } from '@shared/services/tags.service';
 
 const STATUS_OPTIONS: { value: ConversationStatus | ''; label: string }[] = [
   { value: '', label: 'Todos' },
@@ -16,7 +18,7 @@ const PAGE_SIZE = 20;
 @Component({
   selector: 'wf-conversation-list',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, TagAutocompleteComponent],
   template: `
     <div class="col-head">
       <h2>Conversas</h2>
@@ -27,6 +29,13 @@ const PAGE_SIZE = 20;
             <option [value]="opt.value">{{ opt.label }}</option>
           }
         </select>
+        <wf-tag-autocomplete
+          [selected]="tagFilter() ? [tagFilter()!] : []"
+          [allowCreate]="false"
+          placeholder="Filtrar por tag..."
+          (select)="setTagFilter($event)"
+          (remove)="clearTagFilter()"
+        />
       </form>
     </div>
 
@@ -209,6 +218,8 @@ export class ConversationListComponent implements OnInit {
   loading = signal(false);
   loadingMore = signal(false);
   error = signal<string | null>(null);
+  /** Tag selecionada como filtro (T-040); null = sem filtro. */
+  tagFilter = signal<Tag | null>(null);
 
   private page = 1;
   private total = 0;
@@ -247,21 +258,36 @@ export class ConversationListComponent implements OnInit {
     this.fetch(false);
   }
 
+  /** Aplica o filtro por tag e recarrega. */
+  setTagFilter(tag: Tag): void {
+    this.tagFilter.set(tag);
+    this.reload();
+  }
+
+  /** Limpa o filtro por tag e recarrega. */
+  clearTagFilter(): void {
+    this.tagFilter.set(null);
+    this.reload();
+  }
+
   private fetch(replace: boolean): void {
     const { search, status } = this.form.getRawValue();
-    this.svc.listConversations({ search, status, page: this.page, pageSize: PAGE_SIZE }).subscribe({
-      next: res => {
-        this.total = res.total;
-        this.items.update(cur => (replace ? res.data : [...cur, ...res.data]));
-        this.loading.set(false);
-        this.loadingMore.set(false);
-      },
-      error: () => {
-        this.error.set('Falha ao carregar conversas');
-        this.loading.set(false);
-        this.loadingMore.set(false);
-      },
-    });
+    const tagId = this.tagFilter()?.id ?? null;
+    this.svc
+      .listConversations({ search, status, tagId, page: this.page, pageSize: PAGE_SIZE })
+      .subscribe({
+        next: res => {
+          this.total = res.total;
+          this.items.update(cur => (replace ? res.data : [...cur, ...res.data]));
+          this.loading.set(false);
+          this.loadingMore.set(false);
+        },
+        error: () => {
+          this.error.set('Falha ao carregar conversas');
+          this.loading.set(false);
+          this.loadingMore.set(false);
+        },
+      });
   }
 
   /** Marca uma conversa como lida na lista local (após abrir). */

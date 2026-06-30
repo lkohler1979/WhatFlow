@@ -3,7 +3,7 @@ import { evolutionApiService } from '@integrations/evolution-api/evolution-api.s
 import { AppError, NotFoundError } from '@core/errors.js';
 import { emitToTenant } from '@core/realtime.js';
 import type { Message } from '@prisma/client';
-import type { ListMessagesQuery, SendMessageDto } from './messages.schema.js';
+import type { CreateNoteDto, ListMessagesQuery, SendMessageDto } from './messages.schema.js';
 
 interface MessageDto {
   id: string;
@@ -92,6 +92,36 @@ export const messagesService = {
       content: dto.text,
     });
     await messagesRepository.touchConversation(conversationId, dto.text);
+
+    const dtoOut = toDto(msg);
+    emitToTenant(tenantId, 'message:new', { conversationId, message: dtoOut });
+    return dtoOut;
+  },
+
+  /**
+   * Nota interna (T-040): persiste uma Message OUTBOUND com isInternal=true.
+   * NÃO chama a Evolution (nada é enviado ao cliente no WhatsApp), NÃO atualiza
+   * o preview/lastMessage da conversa e NÃO mexe no unreadCount. Emite o evento
+   * de realtime para o chat aberto refletir a nota imediatamente.
+   */
+  async addNote(
+    tenantId: string,
+    conversationId: string,
+    dto: CreateNoteDto,
+    supabaseUid?: string,
+  ): Promise<MessageDto> {
+    const belongs = await messagesRepository.conversationBelongsToTenant(conversationId, tenantId);
+    if (!belongs) throw new NotFoundError('Conversa');
+
+    const sentByAgentId = supabaseUid
+      ? await messagesRepository.findUserIdBySupabaseUid(supabaseUid, tenantId)
+      : null;
+
+    const msg = await messagesRepository.createInternalNote({
+      conversationId,
+      sentByAgentId,
+      content: dto.text,
+    });
 
     const dtoOut = toDto(msg);
     emitToTenant(tenantId, 'message:new', { conversationId, message: dtoOut });

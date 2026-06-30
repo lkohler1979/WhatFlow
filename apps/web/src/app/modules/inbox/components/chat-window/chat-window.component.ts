@@ -53,20 +53,55 @@ const PAGE_SIZE = 30;
           <p class="muted center">Nenhuma mensagem ainda.</p>
         } @else {
           @for (msg of messages(); track msg.id) {
-            <div class="bubble-row" [class.out]="msg.direction === 'OUTBOUND'">
-              <div class="bubble" [class.out]="msg.direction === 'OUTBOUND'">
-                <span class="text">{{ msg.content }}</span>
-                <span class="meta">{{ time(msg.timestamp) }}</span>
+            @if (msg.isInternal) {
+              <div class="note-row">
+                <div class="note">
+                  <span class="note-label">🗒️ Nota interna · não enviada ao cliente</span>
+                  <span class="text">{{ msg.content }}</span>
+                  <span class="meta">{{ time(msg.timestamp) }}</span>
+                </div>
               </div>
-            </div>
+            } @else {
+              <div class="bubble-row" [class.out]="msg.direction === 'OUTBOUND'">
+                <div class="bubble" [class.out]="msg.direction === 'OUTBOUND'">
+                  <span class="text">{{ msg.content }}</span>
+                  <span class="meta">{{ time(msg.timestamp) }}</span>
+                </div>
+              </div>
+            }
           }
         }
       </div>
 
-      <form class="composer" [formGroup]="form" (ngSubmit)="send()">
-        <input class="wf-input" formControlName="text" placeholder="Digite uma mensagem..." />
+      <div class="composer-mode">
+        <button
+          type="button"
+          class="mode-tab"
+          [class.active]="!noteMode()"
+          (click)="setNoteMode(false)"
+        >
+          Mensagem
+        </button>
+        <button
+          type="button"
+          class="mode-tab note"
+          [class.active]="noteMode()"
+          (click)="setNoteMode(true)"
+        >
+          🗒️ Nota interna
+        </button>
+      </div>
+
+      <form class="composer" [class.note]="noteMode()" [formGroup]="form" (ngSubmit)="send()">
+        <input
+          class="wf-input"
+          formControlName="text"
+          [placeholder]="
+            noteMode() ? 'Nota interna (não vai ao cliente)...' : 'Digite uma mensagem...'
+          "
+        />
         <button class="wf-btn wf-btn--primary" type="submit" [disabled]="form.invalid || sending()">
-          {{ sending() ? '...' : 'Enviar' }}
+          {{ sending() ? '...' : noteMode() ? 'Salvar nota' : 'Enviar' }}
         </button>
       </form>
       @if (sendErr()) {
@@ -154,6 +189,29 @@ const PAGE_SIZE = 30;
       .bubble.out {
         background: #d9fdd3;
       }
+      .note-row {
+        display: flex;
+        justify-content: center;
+      }
+      .note {
+        max-width: 80%;
+        padding: 0.5rem 0.7rem;
+        border-radius: 10px;
+        background: #fff8d6;
+        border: 1px solid #f4e08a;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+        display: flex;
+        flex-direction: column;
+        color: #6b5b16;
+      }
+      .note-label {
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        opacity: 0.8;
+        margin-bottom: 0.2rem;
+      }
       .text {
         white-space: pre-wrap;
         word-break: break-word;
@@ -164,12 +222,45 @@ const PAGE_SIZE = 30;
         opacity: 0.5;
         margin-top: 0.15rem;
       }
+      .composer-mode {
+        display: flex;
+        gap: 0.25rem;
+        padding: 0.5rem 1rem 0;
+        background: #fff;
+      }
+      .mode-tab {
+        border: 1px solid #d0d5dd;
+        background: #f7f9fc;
+        color: #475467;
+        padding: 0.25rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        cursor: pointer;
+      }
+      .mode-tab.active {
+        background: #ebf5fb;
+        border-color: #93c5fd;
+        color: #1d4ed8;
+        font-weight: 600;
+      }
+      .mode-tab.note.active {
+        background: #fff8d6;
+        border-color: #f4e08a;
+        color: #6b5b16;
+      }
       .composer {
         display: flex;
         gap: 0.5rem;
         padding: 0.7rem 1rem;
         background: #fff;
         border-top: 1px solid #e4e9f0;
+      }
+      .composer.note {
+        background: #fffdf2;
+      }
+      .composer.note .wf-input {
+        border-color: #f4e08a;
+        background: #fffdf2;
       }
       .composer .wf-input {
         flex: 1;
@@ -208,6 +299,8 @@ export class ChatWindowComponent implements AfterViewChecked {
   sending = signal(false);
   sendErr = signal<string | null>(null);
   togglingBot = signal(false);
+  /** Quando true, o composer registra uma NOTA INTERNA (não vai ao WhatsApp). */
+  noteMode = signal(false);
 
   conversation: Conversation | null = null;
   private nextCursor: string | null = null;
@@ -225,6 +318,7 @@ export class ChatWindowComponent implements AfterViewChecked {
     this.messages.set([]);
     this.nextCursor = null;
     this.sendErr.set(null);
+    this.noteMode.set(false);
     this.form.reset({ text: '' });
     if (conv) {
       this.loadInitial(conv.id);
@@ -300,6 +394,12 @@ export class ChatWindowComponent implements AfterViewChecked {
     });
   }
 
+  /** Alterna entre enviar mensagem ao cliente e registrar nota interna. */
+  setNoteMode(on: boolean): void {
+    this.noteMode.set(on);
+    this.sendErr.set(null);
+  }
+
   send(): void {
     const conv = this.conversation;
     if (!conv || this.form.invalid) return;
@@ -307,7 +407,9 @@ export class ChatWindowComponent implements AfterViewChecked {
     if (!text) return;
     this.sending.set(true);
     this.sendErr.set(null);
-    this.svc.sendMessage(conv.id, text).subscribe({
+    const isNote = this.noteMode();
+    const req$ = isNote ? this.svc.addNote(conv.id, text) : this.svc.sendMessage(conv.id, text);
+    req$.subscribe({
       next: msg => {
         this.messages.update(cur => [...cur, msg]);
         this.form.reset({ text: '' });
@@ -316,7 +418,10 @@ export class ChatWindowComponent implements AfterViewChecked {
       },
       error: (e: { error?: { message?: string } }) => {
         this.sending.set(false);
-        this.sendErr.set(e?.error?.message ?? 'Falha ao enviar (instância desconectada?)');
+        this.sendErr.set(
+          e?.error?.message ??
+            (isNote ? 'Falha ao salvar a nota' : 'Falha ao enviar (instância desconectada?)'),
+        );
       },
     });
   }

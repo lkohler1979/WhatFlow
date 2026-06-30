@@ -44,4 +44,21 @@ export const tagsController = {
     );
     res.status(204).send();
   },
+
+  // ── Aplicação a conversas (montadas nas rotas de conversations — T-040) ──
+
+  async attachToConversation(req: Request, res: Response): Promise<void> {
+    const { tagId } = req.body as { tagId: string };
+    await tagsService.attachToConversation(req.tenantId as string, req.params.id as string, tagId);
+    res.status(204).send();
+  },
+
+  async detachFromConversation(req: Request, res: Response): Promise<void> {
+    await tagsService.detachFromConversation(
+      req.tenantId as string,
+      req.params.id as string,
+      req.params.tagId as string,
+    );
+    res.status(204).send();
+  },
 };

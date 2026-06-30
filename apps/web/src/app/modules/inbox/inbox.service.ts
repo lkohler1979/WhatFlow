@@ -12,6 +12,12 @@ export interface ConversationContact {
   avatarUrl: string | null;
 }
 
+export interface ConversationTag {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export interface Conversation {
   id: string;
   contact: ConversationContact;
@@ -22,6 +28,8 @@ export interface Conversation {
   lastMessageAt: string | null;
   instanceId: string;
   assignedToUserId?: string | null;
+  /** Tags da conversa (T-040). */
+  tags?: ConversationTag[];
 }
 
 export interface Message {
@@ -31,6 +39,8 @@ export interface Message {
   type: string;
   status: string;
   timestamp: string;
+  /** Nota interna (T-040): true = não foi enviada ao WhatsApp. */
+  isInternal?: boolean;
 }
 
 export interface Paginated<T> {
@@ -43,6 +53,8 @@ export interface Paginated<T> {
 export interface ConversationFilters {
   status?: ConversationStatus | '';
   search?: string;
+  /** Filtra conversas que possuem a tag (T-040). */
+  tagId?: string | null;
   page?: number;
   pageSize?: number;
 }
@@ -58,6 +70,7 @@ export class InboxService {
     };
     if (filters.status) params['status'] = filters.status;
     if (filters.search) params['search'] = filters.search;
+    if (filters.tagId) params['tagId'] = filters.tagId;
     return this.api.get<Paginated<Conversation>>('/conversations', params);
   }
 
@@ -80,6 +93,24 @@ export class InboxService {
 
   sendMessage(id: string, text: string): Observable<Message> {
     return this.api.post<Message>(`/conversations/${id}/messages`, { text });
+  }
+
+  /**
+   * Adiciona uma NOTA INTERNA à conversa (T-040). Não é enviada ao WhatsApp;
+   * volta como Message com `isInternal: true`.
+   */
+  addNote(id: string, text: string): Observable<Message> {
+    return this.api.post<Message>(`/conversations/${id}/notes`, { text });
+  }
+
+  /** Anexa uma tag à conversa (T-040). */
+  attachTag(id: string, tagId: string): Observable<void> {
+    return this.api.post<void>(`/conversations/${id}/tags`, { tagId });
+  }
+
+  /** Remove uma tag da conversa (T-040). */
+  detachTag(id: string, tagId: string): Observable<void> {
+    return this.api.delete<void>(`/conversations/${id}/tags/${tagId}`);
   }
 
   markRead(id: string): Observable<void> {

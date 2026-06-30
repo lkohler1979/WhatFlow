@@ -60,4 +60,33 @@ export const tagsRepository = {
     const res = await prisma.contactTag.deleteMany({ where: { contactId, tagId } });
     return res.count;
   },
+
+  // ----------------------------------------------------------------
+  // Aplicação a conversas (T-040). Espelha o que existe para contatos.
+  // A conversa é checada por tenant antes de anexar/remover.
+  // ----------------------------------------------------------------
+
+  conversationBelongsToTenant(
+    conversationId: string,
+    tenantId: string,
+  ): Promise<{ id: string } | null> {
+    return prisma.conversation.findFirst({
+      where: { id: conversationId, tenantId },
+      select: { id: true },
+    });
+  },
+
+  /** Anexa a tag à conversa (idempotente — ignora se já existir). */
+  async attachToConversation(conversationId: string, tagId: string): Promise<void> {
+    await prisma.conversationTag.createMany({
+      data: [{ conversationId, tagId }],
+      skipDuplicates: true,
+    });
+  },
+
+  /** Remove a associação; retorna quantas linhas saíram (0 = não existia). */
+  async detachFromConversation(conversationId: string, tagId: string): Promise<number> {
+    const res = await prisma.conversationTag.deleteMany({ where: { conversationId, tagId } });
+    return res.count;
+  },
 };

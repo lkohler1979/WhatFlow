@@ -1,9 +1,15 @@
 import { prisma } from '@core/prisma.js';
 import type { Conversation, ConversationStatus, Contact, Prisma } from '@prisma/client';
 
-/** Conversa com os dados de contato necessários ao inbox. */
+/** Tags incluídas na conversa (T-040) — para exibição no inbox. */
+const conversationTagsInclude = {
+  conversationTags: { include: { tag: true } },
+} satisfies Prisma.ConversationInclude;
+
+/** Conversa com os dados de contato + tags necessários ao inbox. */
 export type ConversationWithContact = Conversation & {
   contact: Pick<Contact, 'id' | 'name' | 'phone' | 'avatarUrl'>;
+  conversationTags: { tag: { id: string; name: string; color: string } }[];
 };
 
 interface ListFilters {
@@ -11,6 +17,7 @@ interface ListFilters {
   instanceId?: string;
   assignedToUserId?: string;
   contactId?: string;
+  tagId?: string;
   botActive?: boolean;
   search?: string;
   page: number;
@@ -28,6 +35,7 @@ export const conversationsRepository = {
     if (f.instanceId) where.instanceId = f.instanceId;
     if (f.assignedToUserId) where.assignedTo = f.assignedToUserId;
     if (f.contactId) where.contactId = f.contactId;
+    if (f.tagId) where.conversationTags = { some: { tagId: f.tagId } };
     if (f.botActive !== undefined) where.botActive = f.botActive;
     if (f.search) {
       where.contact = {
@@ -42,7 +50,7 @@ export const conversationsRepository = {
     const [data, total] = await Promise.all([
       prisma.conversation.findMany({
         where,
-        include: { contact: { select: contactSelect } },
+        include: { contact: { select: contactSelect }, ...conversationTagsInclude },
         // lastMessageAt pode ser null em conversas recém-criadas → empurra p/ o fim.
         orderBy: [{ lastMessageAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
         skip: (f.page - 1) * f.pageSize,
@@ -58,6 +66,7 @@ export const conversationsRepository = {
       where: { id, tenantId },
       include: {
         contact: { select: { id: true, name: true, phone: true, avatarUrl: true } },
+        ...conversationTagsInclude,
       },
     }) as Promise<ConversationWithContact | null>;
   },

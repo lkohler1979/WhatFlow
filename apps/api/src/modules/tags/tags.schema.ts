@@ -39,6 +39,12 @@ export const ContactTagParamsSchema = z.object({
   tagId: z.string().uuid('tagId inválido'),
 });
 
+/** Params de attach/detach em conversa: /conversations/:id/tags(/:tagId). */
+export const ConversationTagParamsSchema = z.object({
+  id: z.string().uuid('ID da conversa inválido'),
+  tagId: z.string().uuid('tagId inválido'),
+});
+
 export type CreateTagDto = z.infer<typeof CreateTagSchema>;
 export type UpdateTagDto = z.infer<typeof UpdateTagSchema>;
 export type ListTagsQuery = z.infer<typeof ListTagsQuerySchema>;

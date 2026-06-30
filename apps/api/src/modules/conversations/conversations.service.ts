@@ -17,6 +17,7 @@ interface ConversationDto {
   createdAt: Date;
   updatedAt: Date;
   contact: { id: string; name: string | null; phone: string; avatarUrl: string | null };
+  tags: { id: string; name: string; color: string }[];
 }
 
 function toDto(c: ConversationWithContact): ConversationDto {
@@ -37,6 +38,11 @@ function toDto(c: ConversationWithContact): ConversationDto {
       phone: c.contact.phone,
       avatarUrl: c.contact.avatarUrl,
     },
+    tags: (c.conversationTags ?? []).map(ct => ({
+      id: ct.tag.id,
+      name: ct.tag.name,
+      color: ct.tag.color,
+    })),
   };
 }
 
@@ -50,6 +56,7 @@ export const conversationsService = {
       instanceId: query.instanceId,
       assignedToUserId: query.assignedToUserId,
       contactId: query.contactId,
+      tagId: query.tagId,
       botActive: query.botActive,
       search: query.search,
       page: query.page,

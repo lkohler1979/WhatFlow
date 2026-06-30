@@ -15,5 +15,14 @@ export const SendMessageSchema = z.object({
   text: z.string().min(1).max(4096),
 });
 
+/**
+ * Nota interna (T-040): texto registrado na conversa pelo agente, NUNCA enviado
+ * ao WhatsApp. Persistida como Message com isInternal=true / OUTBOUND.
+ */
+export const CreateNoteSchema = z.object({
+  text: z.string().min(1).max(4096),
+});
+
 export type ListMessagesQuery = z.infer<typeof ListMessagesQuerySchema>;
 export type SendMessageDto = z.infer<typeof SendMessageSchema>;
+export type CreateNoteDto = z.infer<typeof CreateNoteSchema>;

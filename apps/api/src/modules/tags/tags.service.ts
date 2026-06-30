@@ -75,4 +75,28 @@ export const tagsService = {
     if (!contact) throw new NotFoundError('Contato');
     await tagsRepository.detachFromContact(contactId, tagId);
   },
+
+  /** Anexa uma tag a uma conversa — ambos validados no tenant. Idempotente. */
+  async attachToConversation(
+    tenantId: string,
+    conversationId: string,
+    tagId: string,
+  ): Promise<void> {
+    const conv = await tagsRepository.conversationBelongsToTenant(conversationId, tenantId);
+    if (!conv) throw new NotFoundError('Conversa');
+    const tag = await tagsRepository.findByIdInTenant(tagId, tenantId);
+    if (!tag) throw new NotFoundError('Tag');
+    await tagsRepository.attachToConversation(conversationId, tagId);
+  },
+
+  /** Remove a tag da conversa — 404 se a conversa não for do tenant. */
+  async detachFromConversation(
+    tenantId: string,
+    conversationId: string,
+    tagId: string,
+  ): Promise<void> {
+    const conv = await tagsRepository.conversationBelongsToTenant(conversationId, tenantId);
+    if (!conv) throw new NotFoundError('Conversa');
+    await tagsRepository.detachFromConversation(conversationId, tagId);
+  },
 };

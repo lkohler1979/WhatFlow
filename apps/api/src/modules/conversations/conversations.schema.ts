@@ -10,6 +10,8 @@ export const ListConversationsQuerySchema = z.object({
   assignedToUserId: z.string().uuid().optional(),
   /** Filtra conversas de um contato específico (histórico do contato — T-042). */
   contactId: z.string().uuid().optional(),
+  /** Filtra conversas que possuem a tag informada (T-040). */
+  tagId: z.string().uuid().optional(),
   /** Filtra por bot ligado/desligado. Aceita "true"/"false" em querystring. */
   botActive: z
     .enum(['true', 'false'])
@@ -35,6 +37,11 @@ export const UpdateConversationSchema = z
     d => d.status !== undefined || d.assignedToUserId !== undefined || d.botActive !== undefined,
     { message: 'Informe ao menos um campo para atualizar' },
   );
+
+/** Param de rota com o id da conversa (ex.: anexar tag em /conversations/:id/tags). */
+export const ConversationIdParamSchema = z.object({
+  id: z.string().uuid('ID da conversa inválido'),
+});
 
 export type ListConversationsQuery = z.infer<typeof ListConversationsQuerySchema>;
 export type UpdateConversationDto = z.infer<typeof UpdateConversationSchema>;

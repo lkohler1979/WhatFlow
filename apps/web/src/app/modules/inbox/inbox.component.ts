@@ -1,6 +1,6 @@
 import { Component, OnInit, ViewChild, effect, inject, signal } from '@angular/core';
 import { SocketService } from '@core/services/socket.service';
-import { Conversation, ConversationStatus, Message } from './inbox.service';
+import { Conversation, ConversationStatus, ConversationTag, Message } from './inbox.service';
 import { ConversationListComponent } from './components/conversation-list/conversation-list.component';
 import { ChatWindowComponent } from './components/chat-window/chat-window.component';
 import { ContactInfoPanelComponent } from './components/contact-info-panel/contact-info-panel.component';
@@ -22,7 +22,7 @@ import { ContactInfoPanelComponent } from './components/contact-info-panel/conta
         />
       </section>
       <aside class="col col-info">
-        <wf-contact-info-panel [conversation]="selected()" />
+        <wf-contact-info-panel [conversation]="selected()" (tagsChanged)="onTagsChanged($event)" />
       </aside>
     </div>
   `,
@@ -141,5 +141,11 @@ export class InboxComponent implements OnInit {
   onBotToggled(ev: { id: string; botActive: boolean }): void {
     this.list?.applyUpdate(ev.id, { botActive: ev.botActive });
     this.selected.update(c => (c && c.id === ev.id ? { ...c, botActive: ev.botActive } : c));
+  }
+
+  /** Reflete as tags da conversa na lista e na conversa selecionada (T-040). */
+  onTagsChanged(ev: { id: string; tags: ConversationTag[] }): void {
+    this.list?.applyUpdate(ev.id, { tags: ev.tags });
+    this.selected.update(c => (c && c.id === ev.id ? { ...c, tags: ev.tags } : c));
   }
 }

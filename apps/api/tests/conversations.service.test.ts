@@ -27,6 +27,9 @@ const conv = (over: Record<string, unknown> = {}) =>
     createdAt: new Date(),
     updatedAt: new Date(),
     contact: { id: 'ct1', name: 'João', phone: '5527999887766', avatarUrl: null },
+    conversationTags: [
+      { tag: { id: 'tag-1', name: 'VIP', color: '#3498DB' } },
+    ],
     ...over,
   }) as never;
 
@@ -81,6 +84,21 @@ describe('conversationsService.list', () => {
       't1',
       expect.objectContaining({ contactId: 'ct1' }),
     );
+  });
+
+  it('repassa tagId ao repositório e inclui as tags no DTO (T-040)', async () => {
+    mockRepo.listByTenant.mockResolvedValue({ data: [conv()], total: 1 });
+    const r = await conversationsService.list('t1', {
+      tagId: 'tag-1',
+      page: 1,
+      pageSize: 20,
+    } as never);
+
+    expect(mockRepo.listByTenant).toHaveBeenCalledWith(
+      't1',
+      expect.objectContaining({ tagId: 'tag-1' }),
+    );
+    expect(r.data[0].tags).toEqual([{ id: 'tag-1', name: 'VIP', color: '#3498DB' }]);
   });
 });
 

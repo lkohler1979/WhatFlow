@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { messagesService } from './messages.service.js';
 import { ListMessagesQuerySchema } from './messages.schema.js';
-import type { SendMessageDto } from './messages.schema.js';
+import type { CreateNoteDto, SendMessageDto } from './messages.schema.js';
 
 export const messagesController = {
   async list(req: Request, res: Response): Promise<void> {
@@ -18,5 +18,14 @@ export const messagesController = {
       req.user?.sub,
     );
     res.status(201).json(message);
+  },
+  async addNote(req: Request, res: Response): Promise<void> {
+    const note = await messagesService.addNote(
+      req.tenantId as string,
+      req.params.id as string,
+      req.body as CreateNoteDto,
+      req.user?.sub,
+    );
+    res.status(201).json(note);
   },
 };

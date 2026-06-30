@@ -87,6 +87,29 @@ export const messagesRepository = {
     });
   },
 
+  /**
+   * Cria uma NOTA INTERNA (T-040): OUTBOUND, isInternal=true. Não passa pela
+   * Evolution, não toca o preview da conversa nem o unreadCount.
+   */
+  createInternalNote(input: {
+    conversationId: string;
+    sentByAgentId?: string | null;
+    content: string;
+  }): Promise<Message> {
+    return prisma.message.create({
+      data: {
+        conversationId: input.conversationId,
+        sentByAgentId: input.sentByAgentId ?? undefined,
+        direction: 'OUTBOUND',
+        type: 'TEXT',
+        content: input.content,
+        status: 'SENT',
+        isInternal: true,
+        timestamp: new Date(),
+      },
+    });
+  },
+
   /** Atualiza preview/último-envio da conversa (agente enviando não incrementa unread). */
   async touchConversation(id: string, preview: string): Promise<void> {
     await prisma.conversation.update({
