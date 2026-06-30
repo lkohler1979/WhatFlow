@@ -15,7 +15,11 @@ import { ContactInfoPanelComponent } from './components/contact-info-panel/conta
         <wf-conversation-list [selectedId]="selected()?.id ?? null" (select)="onSelect($event)" />
       </aside>
       <section class="col col-chat">
-        <wf-chat-window [selected]="selected()" (read)="onRead($event)" />
+        <wf-chat-window
+          [selected]="selected()"
+          (read)="onRead($event)"
+          (botToggled)="onBotToggled($event)"
+        />
       </section>
       <aside class="col col-info">
         <wf-contact-info-panel [conversation]="selected()" />
@@ -132,5 +136,10 @@ export class InboxComponent implements OnInit {
   onRead(id: string): void {
     this.list?.clearUnread(id);
     this.selected.update(c => (c && c.id === id ? { ...c, unreadCount: 0 } : c));
+  }
+
+  onBotToggled(ev: { id: string; botActive: boolean }): void {
+    this.list?.applyUpdate(ev.id, { botActive: ev.botActive });
+    this.selected.update(c => (c && c.id === ev.id ? { ...c, botActive: ev.botActive } : c));
   }
 }

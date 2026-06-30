@@ -25,8 +25,22 @@ const PAGE_SIZE = 30;
       </div>
     } @else {
       <header class="chat-head">
-        <strong>{{ conversation.contact.name || conversation.contact.phone }}</strong>
-        <span class="phone">{{ conversation.contact.phone }}</span>
+        <div class="who">
+          <strong>{{ conversation.contact.name || conversation.contact.phone }}</strong>
+          <span class="phone">{{ conversation.contact.phone }}</span>
+        </div>
+        <button
+          type="button"
+          class="bot-toggle"
+          [class.on]="conversation.botActive"
+          [disabled]="togglingBot()"
+          (click)="toggleBot()"
+          [title]="
+            conversation.botActive ? 'Bot respondendo — clique para assumir' : 'Você está atendendo'
+          "
+        >
+          {{ conversation.botActive ? '🤖 Bot ativo' : '🙋 Atendimento humano' }}
+        </button>
       </header>
 
       <div #scroller class="messages" (scroll)="onScroll($event)">
@@ -80,11 +94,37 @@ const PAGE_SIZE = 30;
         background: #fff;
         border-bottom: 1px solid #e4e9f0;
         display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+      }
+      .chat-head .who {
+        display: flex;
         flex-direction: column;
+        min-width: 0;
       }
       .chat-head .phone {
         font-size: 0.75rem;
         opacity: 0.6;
+      }
+      .bot-toggle {
+        flex: 0 0 auto;
+        border: 1px solid #d0d5dd;
+        background: #fff7e6;
+        color: #92400e;
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        cursor: pointer;
+      }
+      .bot-toggle.on {
+        background: #e7f8ee;
+        color: #065f46;
+        border-color: #b7e4c7;
+      }
+      .bot-toggle:disabled {
+        opacity: 0.6;
+        cursor: default;
       }
       .messages {
         flex: 1;
@@ -159,12 +199,15 @@ export class ChatWindowComponent implements AfterViewChecked {
   @ViewChild('scroller') private scroller?: ElementRef<HTMLElement>;
   /** Emite quando a conversa aberta foi marcada como lida (para zerar badge na lista). */
   @Output() read = new EventEmitter<string>();
+  /** Emite ao alternar o bot (para o Inbox refletir na lista/selecionada). */
+  @Output() botToggled = new EventEmitter<{ id: string; botActive: boolean }>();
 
   messages = signal<Message[]>([]);
   loading = signal(false);
   loadingMore = signal(false);
   sending = signal(false);
   sendErr = signal<string | null>(null);
+  togglingBot = signal(false);
 
   conversation: Conversation | null = null;
   private nextCursor: string | null = null;
@@ -275,6 +318,22 @@ export class ChatWindowComponent implements AfterViewChecked {
         this.sending.set(false);
         this.sendErr.set(e?.error?.message ?? 'Falha ao enviar (instância desconectada?)');
       },
+    });
+  }
+
+  /** Transferência bot↔humano: liga/desliga o bot da conversa. */
+  toggleBot(): void {
+    const conv = this.conversation;
+    if (!conv || this.togglingBot()) return;
+    const next = !conv.botActive;
+    this.togglingBot.set(true);
+    this.svc.setBotActive(conv.id, next).subscribe({
+      next: () => {
+        if (this.conversation?.id === conv.id) this.conversation.botActive = next;
+        this.botToggled.emit({ id: conv.id, botActive: next });
+        this.togglingBot.set(false);
+      },
+      error: () => this.togglingBot.set(false),
     });
   }
 

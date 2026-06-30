@@ -85,4 +85,14 @@ export class InboxService {
   markRead(id: string): Observable<void> {
     return this.api.post<void>(`/conversations/${id}/read`, {});
   }
+
+  /** Liga/desliga o bot da conversa (transferência bot↔humano). */
+  setBotActive(id: string, botActive: boolean): Observable<Conversation> {
+    return this.api.patch<Conversation>(`/conversations/${id}`, { botActive });
+  }
+
+  /** Atualiza o status da conversa (ex.: resolver). */
+  setStatus(id: string, status: ConversationStatus): Observable<Conversation> {
+    return this.api.patch<Conversation>(`/conversations/${id}`, { status });
+  }
 }
