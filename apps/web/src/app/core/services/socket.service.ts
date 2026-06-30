@@ -9,10 +9,39 @@ export interface InstanceStatusEvent {
   qrCode?: string | null;
 }
 
+export interface InboxMessagePayload {
+  id: string;
+  direction: 'INBOUND' | 'OUTBOUND';
+  content: string;
+  type: string;
+  status: string;
+  timestamp: string;
+}
+
+/**
+ * `message:new` chega em duas formas: do envio do agente (`messages.service`,
+ * com `message` completa) e do recebimento via webhook (`webhook-receiver`,
+ * só `contactId`+`preview`). Por isso ambos os campos são opcionais.
+ */
 export interface MessageEvent {
   conversationId: string;
-  contactId: string;
-  preview: string;
+  contactId?: string;
+  preview?: string;
+  message?: InboxMessagePayload;
+}
+
+export interface ConversationUpdatedEvent {
+  id: string;
+  status?: string;
+  botActive?: boolean;
+  unreadCount?: number;
+  lastMessagePreview?: string | null;
+  lastMessageAt?: string | null;
+}
+
+export interface ConversationReadEvent {
+  id: string;
+  unreadCount: number;
 }
 
 export interface CampaignProgressEvent {
@@ -35,6 +64,10 @@ export class SocketService {
   readonly lastMessage = signal<MessageEvent | null>(null);
   /** Último progresso de campanha recebido (realtime). */
   readonly campaignProgress = signal<CampaignProgressEvent | null>(null);
+  /** Última conversa atualizada (status/atribuição/preview). */
+  readonly conversationUpdated = signal<ConversationUpdatedEvent | null>(null);
+  /** Última conversa marcada como lida. */
+  readonly conversationRead = signal<ConversationReadEvent | null>(null);
   readonly connected = signal(false);
 
   /** Conecta ao Socket.io e entra na sala do tenant. Idempotente. */
@@ -61,6 +94,12 @@ export class SocketService {
     socket.on('message:new', (p: MessageEvent) => this.zone.run(() => this.lastMessage.set(p)));
     socket.on('campaign:progress', (p: CampaignProgressEvent) =>
       this.zone.run(() => this.campaignProgress.set(p)),
+    );
+    socket.on('conversation:updated', (p: ConversationUpdatedEvent) =>
+      this.zone.run(() => this.conversationUpdated.set(p)),
+    );
+    socket.on('conversation:read', (p: ConversationReadEvent) =>
+      this.zone.run(() => this.conversationRead.set(p)),
     );
   }
 
