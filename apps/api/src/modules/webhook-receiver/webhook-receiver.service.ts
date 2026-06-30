@@ -2,6 +2,7 @@ import { logger } from '@core/logger.js';
 import { emitToTenant } from '@core/realtime.js';
 import { webhookReceiverRepository as repo } from './webhook-receiver.repository.js';
 import { flowRunner } from '@modules/flow-engine/flow-engine.runner.js';
+import { webhooksService } from '@modules/webhooks/webhooks.service.js';
 import type { Instance, InstanceStatus } from '@prisma/client';
 
 function mapState(raw?: string): InstanceStatus {
@@ -133,6 +134,21 @@ export const webhookReceiverService = {
       preview: content ?? '[mídia]',
     });
     logger.info({ instanceId: inst.id, phone }, 'Mensagem recebida persistida');
+
+    // Webhooks de saída (T-047): dispara `MESSAGE_RECEIVED` para integrações
+    // externas. Best-effort: dispatchEvent só enfileira (não faz POST) e nunca
+    // propaga erro, então não interfere no fluxo de ingestão/bot.
+    void webhooksService
+      .dispatchEvent(inst.tenantId, 'MESSAGE_RECEIVED', {
+        conversationId: conversation.id,
+        contactId,
+        phone,
+        text: content,
+        externalId: msg.key.id,
+      })
+      .catch(err =>
+        logger.warn({ err, instanceId: inst.id }, 'Falha ao despachar webhook MESSAGE_RECEIVED'),
+      );
 
     // Bot: roda o motor de fluxos (best-effort) sobre a mensagem recebida.
     await flowRunner.runBot({

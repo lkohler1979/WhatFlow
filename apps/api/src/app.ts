@@ -21,6 +21,8 @@ import { contactsRoutes } from '@modules/contacts/contacts.routes.js';
 import { aiRoutes } from '@modules/ai/ai.routes.js';
 import { conversationsRoutes } from '@modules/conversations/conversations.routes.js';
 import { tagsRoutes } from '@modules/tags/tags.routes.js';
+import { analyticsRoutes } from '@modules/analytics/analytics.routes.js';
+import { webhooksRoutes } from '@modules/webhooks/webhooks.routes.js';
 // import { flowsRoutes }            from '@modules/flows/flows.routes.js';
 // import { conversationsRoutes }    from '@modules/conversations/conversations.routes.js';
 // import { messagesRoutes }         from '@modules/messages/messages.routes.js';
@@ -66,11 +68,13 @@ export function createApp(): { app: Express; httpServer: HttpServer; io: SocketS
   router.use('/instances', instancesRoutes);
   router.use('/flows', flowsRoutes);
   router.use('/webhooks/evolution', webhookReceiverRoutes);
+  router.use('/webhooks', webhooksRoutes);
   router.use('/campaigns', campaignsRoutes);
   router.use('/contacts', contactsRoutes);
   router.use('/ai', aiRoutes);
   router.use('/conversations', conversationsRoutes);
   router.use('/tags', tagsRoutes);
+  router.use('/analytics', analyticsRoutes);
   // router.use('/flows',     flowsRoutes);
   // ... (descomentar conforme implementar)
 
