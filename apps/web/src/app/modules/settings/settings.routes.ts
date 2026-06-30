@@ -10,4 +10,9 @@ export const SETTINGS_ROUTES: Routes = [
     loadComponent: () =>
       import('./components/ai-config/ai-config.component').then(m => m.AiConfigComponent),
   },
+  {
+    path: 'webhooks',
+    loadComponent: () =>
+      import('./components/webhook-list/webhook-list.component').then(m => m.WebhookListComponent),
+  },
 ];

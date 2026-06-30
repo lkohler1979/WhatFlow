@@ -147,14 +147,14 @@
 | ID | Tarefa | Critérios de Aceite | Prio | Esforço | Deps | Status |
 |---|---|---|---|---|---|---|
 | T-044 | Endpoints de métricas e analytics | Todas as queries < 500ms. Dados corretos vs banco raw. | Alta | G | T-036, T-034 | ✅ (módulo `analytics` em `/v1/analytics`: `overview` (conversas/mensagens IN-OUT/contatos/instâncias/campanhas), `messages` (série temporal por dia/semana via `$queryRaw` `date_trunc` parametrizado + JOIN tenant-scoped), `campaigns`. Filtro de período (from/to/granularity, default 30d). Agregações Prisma (count/groupBy/aggregate) sobre índices; sem N+1. 20 testes (273→299 no total)) |
-| T-045 | Dashboard principal com gráficos | Gráficos renderizam. Filtro de período funciona. Dados batem com relatório CSV. | Alta | G | T-044 | ⬜ |
+| T-045 | Dashboard principal com gráficos | Gráficos renderizam. Filtro de período funciona. Dados batem com relatório CSV. | Alta | G | T-044 | ✅ (dashboard consome `/analytics`: 5 KPI cards reais (mensagens/conversas/contatos/instâncias conectadas/campanhas — resolve P-07) + `MessageVolumeChart` em SVG inline (barras agrupadas inbound/outbound, sem lib) + filtro de período (chips 7/30/90d → recarrega KPIs+gráfico). Web build verde) |
 | T-046 | Relatórios exportáveis | CSV gerado tem dados corretos. Excel abre sem erros. Download funciona. | Média | M | T-044 | ⬜ |
 
 ### ÉPICO 6.2 — Webhooks de Saída e Integrações
 | ID | Tarefa | Critérios de Aceite | Prio | Esforço | Deps | Status |
 |---|---|---|---|---|---|---|
 | T-047 | Sistema de webhooks de saída | Webhook disparado em evento. Log exibe status, tempo, resposta. Retry em falha. | Alta | G | T-031 | ✅ (módulo `webhooks` em `/v1/webhooks`: CRUD + `/:id/deliveries` + `/:id/test`; `dispatchEvent` acha assinantes ativos e enfileira (fila `webhook-delivery`). Worker POSTa com `X-WhatFlow-Signature` HMAC-SHA256, grava WebhookDelivery (httpStatus/responseBody/durationMs/attemptCount), status≥400 → retry (BullMQ attempts:5/backoff). Eventos WebhookEvent (MESSAGE_RECEIVED, CAMPAIGN_COMPLETED, ...); ligado no webhook-receiver (MESSAGE_RECEIVED) e campaign.processor (CAMPAIGN_COMPLETED), best-effort. secret nunca vaza (hasSecret). 46 testes) |
-| T-048 | Tela de configuração de webhooks | Usuário cria webhook, testa, vê histórico. Falha exibe mensagem de erro da resposta. | Média | M | T-047 | ⬜ |
+| T-048 | Tela de configuração de webhooks | Usuário cria webhook, testa, vê histórico. Falha exibe mensagem de erro da resposta. | Média | M | T-047 | ✅ (settings/webhooks: lista (eventos como chips, Ativo/Assinado), form modal criar/editar (name/url/events FormArray/isActive/secret opcional, secret nunca exibido via hasSecret), botão "Testar" (POST /:id/test → expande e recarrega histórico), histórico de entregas paginado (status/httpStatus/durationMs/tentativa/resposta; falha mostra responseBody em vermelho). Rota lazy no settings ao lado do AiConfig. Web build verde) |
 
 ### ÉPICO 6.3 — Qualidade, Testes e Deploy
 | ID | Tarefa | Critérios de Aceite | Prio | Esforço | Deps | Status |
