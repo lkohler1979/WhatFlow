@@ -148,7 +148,7 @@
 |---|---|---|---|---|---|---|
 | T-044 | Endpoints de métricas e analytics | Todas as queries < 500ms. Dados corretos vs banco raw. | Alta | G | T-036, T-034 | ✅ (módulo `analytics` em `/v1/analytics`: `overview` (conversas/mensagens IN-OUT/contatos/instâncias/campanhas), `messages` (série temporal por dia/semana via `$queryRaw` `date_trunc` parametrizado + JOIN tenant-scoped), `campaigns`. Filtro de período (from/to/granularity, default 30d). Agregações Prisma (count/groupBy/aggregate) sobre índices; sem N+1. 20 testes (273→299 no total)) |
 | T-045 | Dashboard principal com gráficos | Gráficos renderizam. Filtro de período funciona. Dados batem com relatório CSV. | Alta | G | T-044 | ✅ (dashboard consome `/analytics`: 5 KPI cards reais (mensagens/conversas/contatos/instâncias conectadas/campanhas — resolve P-07) + `MessageVolumeChart` em SVG inline (barras agrupadas inbound/outbound, sem lib) + filtro de período (chips 7/30/90d → recarrega KPIs+gráfico). Web build verde) |
-| T-046 | Relatórios exportáveis | CSV gerado tem dados corretos. Excel abre sem erros. Download funciona. | Média | M | T-044 | ⬜ |
+| T-046 | Relatórios exportáveis | CSV gerado tem dados corretos. Excel abre sem erros. Download funciona. | Média | M | T-044 | ✅ (`GET /v1/analytics/export?report=messages\|campaigns\|overview&...`: CSV UTF-8 **com BOM** (abre no Excel), escaping do T-041, CRLF, Content-Disposition. Reusa o analytics service (zero queries duplicadas). Dashboard com botões "Mensagens/Campanhas (CSV)" via getText+Blob, reusando o período atual. 12 testes (311 no total)) |
 
 ### ÉPICO 6.2 — Webhooks de Saída e Integrações
 | ID | Tarefa | Critérios de Aceite | Prio | Esforço | Deps | Status |

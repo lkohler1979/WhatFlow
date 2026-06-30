@@ -13,3 +13,5 @@ analyticsRoutes.get('/overview', analyticsController.overview);
 analyticsRoutes.get('/messages', analyticsController.messages);
 // Resumo de campanhas (por status + somatórios de envio).
 analyticsRoutes.get('/campaigns', analyticsController.campaigns);
+// Export CSV (UTF-8 com BOM) — ?report=messages|campaigns|overview&from&to&granularity.
+analyticsRoutes.get('/export', analyticsController.export);

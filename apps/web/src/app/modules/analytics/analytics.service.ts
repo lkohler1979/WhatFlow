@@ -4,6 +4,9 @@ import { ApiService } from '@core/services/api.service';
 
 export type Granularity = 'day' | 'week';
 
+/** Relatórios exportáveis (espelha o enum do backend — T-046). */
+export type ExportReport = 'messages' | 'campaigns' | 'overview';
+
 export type ConversationStatus = 'OPEN' | 'PENDING' | 'RESOLVED' | 'SPAM';
 export type InstanceStatus = 'PENDING' | 'QR_PENDING' | 'CONNECTED' | 'DISCONNECTED' | 'BANNED';
 export type CampaignStatus =
@@ -83,5 +86,13 @@ export class AnalyticsService {
 
   campaigns(q?: PeriodQuery): Observable<CampaignsReport> {
     return this.api.get<CampaignsReport>('/analytics/campaigns', this.toParams(q));
+  }
+
+  /**
+   * Baixa um relatório como CSV (texto). O backend devolve UTF-8 com BOM —
+   * apto a abrir no Excel sem erros. O componente transforma em Blob/download.
+   */
+  exportCsv(report: ExportReport, q?: PeriodQuery): Observable<string> {
+    return this.api.getText('/analytics/export', { report, ...this.toParams(q) });
   }
 }

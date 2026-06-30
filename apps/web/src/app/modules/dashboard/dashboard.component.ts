@@ -1,9 +1,11 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import {
   AnalyticsService,
+  ExportReport,
   Granularity,
   MessagesSeries,
   Overview,
+  PeriodQuery,
 } from '../analytics/analytics.service';
 import { MessageVolumeChartComponent } from '../analytics/components/message-volume-chart/message-volume-chart.component';
 
@@ -36,17 +38,37 @@ const PRESETS: PeriodPreset[] = [
           <h1>Dashboard</h1>
           <p class="sub">Visão geral da sua conta — {{ activePreset().label.toLowerCase() }}.</p>
         </div>
-        <div class="filter" role="group" aria-label="Filtro de período">
-          @for (p of presets; track p.days) {
+        <div class="actions">
+          <div class="filter" role="group" aria-label="Filtro de período">
+            @for (p of presets; track p.days) {
+              <button
+                type="button"
+                class="chip"
+                [class.active]="p.days === selectedDays()"
+                (click)="selectPreset(p.days)"
+              >
+                {{ p.label }}
+              </button>
+            }
+          </div>
+          <div class="exports" role="group" aria-label="Exportar relatórios">
             <button
               type="button"
-              class="chip"
-              [class.active]="p.days === selectedDays()"
-              (click)="selectPreset(p.days)"
+              class="chip export"
+              [disabled]="exporting()"
+              (click)="exportCsv('messages')"
             >
-              {{ p.label }}
+              ⬇ Mensagens (CSV)
             </button>
-          }
+            <button
+              type="button"
+              class="chip export"
+              [disabled]="exporting()"
+              (click)="exportCsv('campaigns')"
+            >
+              ⬇ Campanhas (CSV)
+            </button>
+          </div>
         </div>
       </header>
 
@@ -99,10 +121,28 @@ const PRESETS: PeriodPreset[] = [
       .sub {
         opacity: 0.7;
       }
-      .filter {
+      .actions {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.5rem;
+      }
+      .filter,
+      .exports {
         display: flex;
         gap: 0.4rem;
         flex-wrap: wrap;
+      }
+      .chip.export {
+        border-color: #1a5276;
+        color: #1a5276;
+      }
+      .chip.export:hover {
+        background: #eaf2f8;
+      }
+      .chip:disabled {
+        opacity: 0.5;
+        cursor: progress;
       }
       .chip {
         border: 1px solid #d0d5dd;
@@ -185,6 +225,7 @@ export class DashboardComponent implements OnInit {
   presets = PRESETS;
   selectedDays = signal(30);
   loading = signal(true);
+  exporting = signal(false);
   error = signal<string | null>(null);
   overview = signal<Overview | null>(null);
   series = signal<MessagesSeries | null>(null);
@@ -213,17 +254,44 @@ export class DashboardComponent implements OnInit {
     this.load();
   }
 
-  private load(): void {
-    this.loading.set(true);
-    this.error.set(null);
+  /** Período atualmente selecionado — fonte única para gráficos e exports. */
+  private currentQuery(): PeriodQuery {
     const preset = this.activePreset();
     const now = new Date();
     const from = new Date(now.getTime() - preset.days * 24 * 60 * 60 * 1000);
-    const query = {
+    return {
       from: from.toISOString(),
       to: now.toISOString(),
       granularity: preset.granularity,
     };
+  }
+
+  /** Baixa o relatório do período atual como CSV (Blob + <a download>). */
+  exportCsv(report: ExportReport): void {
+    this.exporting.set(true);
+    this.error.set(null);
+    this.analytics.exportCsv(report, this.currentQuery()).subscribe({
+      next: csv => {
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `relatorio-${report}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.exporting.set(false);
+      },
+      error: () => {
+        this.error.set('Falha ao exportar o relatório.');
+        this.exporting.set(false);
+      },
+    });
+  }
+
+  private load(): void {
+    this.loading.set(true);
+    this.error.set(null);
+    const query = this.currentQuery();
 
     let pending = 2;
     const done = (): void => {
