@@ -45,7 +45,7 @@
 
 | # | Item | Detalhe |
 |---|------|---------|
-| P-19 | **Validação visual do Flow Builder no browser (T-023/T-024/T-025)** | Os agentes do frontend usaram o **build do Angular (strictTemplates)** como gate, não verificação visual — a UI não foi clicada de ponta a ponta. Falta validar no navegador: criar fluxo → arrastar nós da paleta → mover cards → conectar saída→entrada (incl. MENU por opção e CONDITION true/false) → editar propriedades por tipo → inserir variável `{{}}` + ver preview → **salvar → reabrir e conferir que o layout persiste** → publicar (e o 409→Duplicar). Docker está estável; dá para usar a ferramenta de preview com backend autenticado (`/v1/flows`). Login: luizarlindo79@gmail.com / 123456. |
+| P-19 | **Validação visual do Flow Builder no browser (T-023/T-024/T-025)** | 🟡 **Em andamento** (2026-06-30): adicionados seletores estáveis (`data-cy`) e spec Cypress `flow-builder.cy.ts` cobrindo criar fluxo → editar nós/propriedades → variável `{{}}` + preview → mover card → conectar TEXT/MENU/CONDITION → salvar → reabrir → publicar → duplicar. `ng build` e typecheck do spec passaram. Falta executar o Cypress em browser; nesta sessão o `ng serve` falhou no sandbox (`listen EACCES`/`spawn EPERM`) e a execução fora do sandbox foi negada. |
 
 ## 🧪 Qualidade / CI (T-050)
 

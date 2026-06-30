@@ -57,6 +57,7 @@ function uid(prefix: string): string {
             <label>Texto</label>
             <textarea
               #f
+              data-cy="node-text"
               rows="4"
               [value]="str(n, 'text')"
               (input)="onInterpInput('text', $event)"
@@ -78,6 +79,7 @@ function uid(prefix: string): string {
             <label>Prompt da IA</label>
             <textarea
               #f
+              data-cy="node-ai-prompt"
               rows="5"
               [value]="str(n, 'prompt')"
               (input)="onInterpInput('prompt', $event)"
@@ -98,6 +100,7 @@ function uid(prefix: string): string {
           <div class="group">
             <label>Variável</label>
             <input
+              data-cy="condition-variable"
               type="text"
               [value]="str(n, 'variable')"
               (input)="patchField('variable', $event)"
@@ -111,6 +114,7 @@ function uid(prefix: string): string {
           <div class="group">
             <label>Operador</label>
             <select
+              data-cy="condition-operator"
               [value]="str(n, 'operator') || 'eq'"
               (change)="patchField('operator', $event)"
               [disabled]="ro()"
@@ -123,6 +127,7 @@ function uid(prefix: string): string {
           <div class="group">
             <label>Valor</label>
             <input
+              data-cy="condition-value"
               type="text"
               [value]="str(n, 'value')"
               (input)="patchField('value', $event)"
@@ -137,6 +142,7 @@ function uid(prefix: string): string {
           <div class="group">
             <label>Nome da variável</label>
             <input
+              data-cy="variable-name"
               type="text"
               [value]="str(n, 'name')"
               (input)="patchField('name', $event)"
@@ -150,6 +156,7 @@ function uid(prefix: string): string {
           <div class="group">
             <label class="check">
               <input
+                data-cy="variable-from-input"
                 type="checkbox"
                 [checked]="bool(n, 'fromInput')"
                 (change)="patchFromInput($event)"
@@ -162,6 +169,7 @@ function uid(prefix: string): string {
             <div class="group">
               <label>Valor estático</label>
               <input
+                data-cy="variable-value"
                 type="text"
                 [value]="str(n, 'value')"
                 (input)="patchField('value', $event)"
@@ -179,6 +187,7 @@ function uid(prefix: string): string {
             <label>Enunciado</label>
             <textarea
               #f
+              data-cy="menu-text"
               rows="3"
               [value]="str(n, 'text')"
               (input)="onInterpInput('text', $event)"
@@ -199,6 +208,7 @@ function uid(prefix: string): string {
               <div class="opt-row">
                 <span class="opt-num">{{ i + 1 }}</span>
                 <input
+                  data-cy="menu-option-label"
                   type="text"
                   [value]="opt.label"
                   (input)="onOptionLabel(i, $event)"
@@ -234,7 +244,13 @@ function uid(prefix: string): string {
                 </button>
               </div>
             }
-            <button class="wf-btn small-btn" type="button" (click)="addOption()" [disabled]="ro()">
+            <button
+              class="wf-btn small-btn"
+              data-cy="add-menu-option"
+              type="button"
+              (click)="addOption()"
+              [disabled]="ro()"
+            >
               + Adicionar opção
             </button>
             @if (!options().length) {
@@ -249,6 +265,7 @@ function uid(prefix: string): string {
           <div class="group">
             <label>Espera (ms)</label>
             <input
+              data-cy="delay-ms"
               type="number"
               min="0"
               step="100"
@@ -264,6 +281,7 @@ function uid(prefix: string): string {
           <div class="group">
             <label>URL (uso futuro)</label>
             <input
+              data-cy="webhook-url"
               type="text"
               [value]="str(n, 'url')"
               (input)="patchField('url', $event)"
@@ -274,6 +292,7 @@ function uid(prefix: string): string {
           <div class="group">
             <label>Método (uso futuro)</label>
             <select
+              data-cy="webhook-method"
               [value]="str(n, 'method') || 'POST'"
               (change)="patchField('method', $event)"
               [disabled]="ro()"
@@ -306,6 +325,7 @@ function uid(prefix: string): string {
             <div class="group">
               <label>URL da mídia</label>
               <input
+                data-cy="media-url"
                 type="text"
                 [value]="str(n, 'mediaUrl')"
                 (input)="patchField('mediaUrl', $event)"
@@ -317,6 +337,7 @@ function uid(prefix: string): string {
               <label>Legenda (opcional)</label>
               <textarea
                 #f
+                data-cy="media-caption"
                 rows="2"
                 [value]="str(n, 'text')"
                 (input)="onInterpInput('text', $event)"

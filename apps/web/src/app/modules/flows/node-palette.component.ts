@@ -22,6 +22,7 @@ import { NODE_META, PALETTE_TYPES, type NodeType } from './flows.models';
         <button
           class="item"
           type="button"
+          [attr.data-cy]="'palette-' + t"
           cdkDrag
           [cdkDragData]="t"
           (cdkDragStarted)="dragType.emit(t)"
