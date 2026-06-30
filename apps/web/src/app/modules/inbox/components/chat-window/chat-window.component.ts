@@ -192,6 +192,22 @@ export class ChatWindowComponent implements AfterViewChecked {
     }
   }
 
+  /**
+   * Acrescenta uma mensagem recebida em tempo real, se for da conversa aberta
+   * e ainda não estiver na lista (dedupe por id — o envio do agente já fez push local).
+   */
+  appendIncoming(conversationId: string, msg: Message): void {
+    if (!this.conversation || this.conversation.id !== conversationId) return;
+    if (this.messages().some(m => m.id === msg.id)) return;
+    this.messages.update(cur => [...cur, msg]);
+    this.shouldScrollBottom = true;
+  }
+
+  /** Id da conversa atualmente aberta (para o orquestrador decidir append vs badge). */
+  get currentId(): string | null {
+    return this.conversation?.id ?? null;
+  }
+
   ngAfterViewChecked(): void {
     const el = this.scroller?.nativeElement;
     if (!el) return;

@@ -269,6 +269,36 @@ export class ConversationListComponent implements OnInit {
     this.items.update(list => list.map(c => (c.id === id ? { ...c, unreadCount: 0 } : c)));
   }
 
+  /**
+   * Aplica uma mensagem recebida em tempo real: atualiza preview/horário, opcionalmente
+   * incrementa o badge de não lidos e reordena a conversa para o topo. Se a conversa
+   * não está na lista carregada, recarrega para trazê-la. Retorna se a achou.
+   */
+  applyIncoming(conversationId: string, preview: string, incrementUnread: boolean): boolean {
+    const list = this.items();
+    const idx = list.findIndex(c => c.id === conversationId);
+    if (idx === -1) {
+      this.reload();
+      return false;
+    }
+    const conv = list[idx];
+    const updated: Conversation = {
+      ...conv,
+      lastMessagePreview: preview || conv.lastMessagePreview,
+      lastMessageAt: new Date().toISOString(),
+      unreadCount: incrementUnread ? conv.unreadCount + 1 : conv.unreadCount,
+    };
+    // Move para o topo (mais recente primeiro).
+    const rest = list.filter((_, i) => i !== idx);
+    this.items.set([updated, ...rest]);
+    return true;
+  }
+
+  /** Atualiza campos de uma conversa na lista (status/atribuição/preview). */
+  applyUpdate(id: string, patch: Partial<Conversation>): void {
+    this.items.update(list => list.map(c => (c.id === id ? { ...c, ...patch } : c)));
+  }
+
   initials(conv: Conversation): string {
     const src = conv.contact.name || conv.contact.phone || '?';
     return src.trim().slice(0, 2).toUpperCase();
