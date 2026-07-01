@@ -1,29 +1,58 @@
-# API de produção. Debian (slim) — o engine do Prisma precisa de OpenSSL/glibc.
+# API de produção — build multi-stage: compila com tsc (+ tsc-alias reescreve
+# os path aliases @core/@modules/... para imports relativos no dist/, já que
+# o tsc sozinho preserva os aliases crus e o Node não os resolveria sozinho).
+# O estágio final roda `node dist/server.js` puro, só com deps de produção —
+# bem mais leve que rodar via tsx com todas as devDependencies instaladas.
 # Contexto de build = raiz do repo (a API estende ../../tsconfig.base.json).
-# Roda com tsx (resolve os path aliases @core/@modules/... do tsconfig em runtime,
-# evitando a etapa frágil de reescrever aliases no output do tsc).
-FROM node:20-slim
+
+# ── Estágio 1: build ──
+FROM node:20-slim AS builder
+
+WORKDIR /app
+COPY tsconfig.base.json ./tsconfig.base.json
+
+WORKDIR /app/apps/api
+COPY apps/api/package.json ./package.json
+# Todas as deps (typescript/tsc-alias/prisma CLI são usados só neste estágio).
+RUN npm install && npm cache clean --force
+COPY apps/api/ ./
+# prisma:generate PRIMEIRO — o tsc precisa dos tipos do Prisma Client
+# (Webhook, WebhookEvent etc.) que só existem depois de gerado.
+RUN npm run prisma:generate \
+  && npm run build
+
+# ── Estágio 2: produção ──
+# Debian (slim) — o engine do Prisma precisa de OpenSSL/glibc.
+FROM node:20-slim AS production
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY tsconfig.base.json ./tsconfig.base.json
 # docs/ vive na raiz do monorepo — necessário para o Swagger (GET /docs) achar
 # o WhatFlow_openapi.yaml (core/swagger.ts procura em ../../docs relativo ao cwd).
 COPY docs/ ./docs/
 
 WORKDIR /app/apps/api
 COPY apps/api/package.json ./package.json
-# Instala TODAS as deps (tsx/prisma são devDeps usados em runtime/migração).
-RUN npm install
-COPY apps/api/ ./
-RUN npm run prisma:generate
+# schema.prisma precisa existir ANTES do npm install: o postinstall do
+# @prisma/client tenta gerar o client automaticamente se achar o schema.
+COPY apps/api/prisma ./prisma
+# Só dependencies (prisma CLI está aqui de propósito — usado no CMD abaixo
+# para `migrate deploy`; typescript/tsc-alias/jest/eslint/tsx ficam de fora).
+RUN npm install --omit=dev && npm cache clean --force
+
+# dist/ já compilado (aliases resolvidos) — nada de TS/tsx na imagem final.
+COPY --from=builder /app/apps/api/dist ./dist
+# Garante o client gerado a partir do schema atual (idempotente — sobrescreve
+# o que o postinstall do @prisma/client possa já ter gerado acima).
+COPY --from=builder /app/apps/api/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/apps/api/node_modules/@prisma/client ./node_modules/@prisma/client
 
 ENV NODE_ENV=production
 EXPOSE 3000
 
-# Aplica migrations (idempotente) e sobe o servidor. Se o banco estiver
-# inacessível, falha rápido — comportamento desejado em produção.
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=prisma/schema.prisma && npx tsx src/server.ts"]
+# Aplica migrations (idempotente) e sobe o servidor compilado. Se o banco
+# estiver inacessível, falha rápido — comportamento desejado em produção.
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=prisma/schema.prisma && node dist/server.js"]
