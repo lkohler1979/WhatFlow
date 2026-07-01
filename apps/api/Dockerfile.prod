@@ -10,6 +10,9 @@ RUN apt-get update \
 
 WORKDIR /app
 COPY tsconfig.base.json ./tsconfig.base.json
+# docs/ vive na raiz do monorepo — necessário para o Swagger (GET /docs) achar
+# o WhatFlow_openapi.yaml (core/swagger.ts procura em ../../docs relativo ao cwd).
+COPY docs/ ./docs/
 
 WORKDIR /app/apps/api
 COPY apps/api/package.json ./package.json

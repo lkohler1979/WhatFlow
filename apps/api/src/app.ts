@@ -6,6 +6,7 @@ import { Server as SocketServer } from 'socket.io';
 import { config } from '@core/config.js';
 import { logger } from '@core/logger.js';
 import { setIo } from '@core/realtime.js';
+import { setupSwagger } from '@core/swagger.js';
 import { globalRateLimit } from '@middlewares/rate-limit.middleware.js';
 import { requestIdMiddleware } from '@middlewares/request-id.middleware.js';
 import { errorHandlerMiddleware } from '@middlewares/error-handler.middleware.js';
@@ -50,6 +51,9 @@ export function createApp(): { app: Express; httpServer: HttpServer; io: SocketS
 
   // ── Middlewares globais ──
   app.use(requestIdMiddleware);
+  // Swagger UI antes do helmet: o CSP padrão do helmet bloqueia os assets inline
+  // do swagger-ui. Monta GET /docs (UI) e GET /v1/openapi.json (spec JSON).
+  setupSwagger(app, config.API_PREFIX);
   app.use(helmet());
   app.use(cors({ origin: config.CORS_ORIGINS.split(','), credentials: true }));
   app.use(express.json({ limit: '10mb' }));

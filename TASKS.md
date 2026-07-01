@@ -159,10 +159,10 @@
 ### ÉPICO 6.3 — Qualidade, Testes e Deploy
 | ID | Tarefa | Critérios de Aceite | Prio | Esforço | Deps | Status |
 |---|---|---|---|---|---|---|
-| T-049 | Cobertura de testes backend (70%+) | `jest --coverage` mostra ≥ 70% linhas. Pipeline CI bloqueia se < 70%. | Alta | G | T-022, T-028, T-033 | ⬜ |
+| T-049 | Cobertura de testes backend (70%+) | `jest --coverage` mostra ≥ 70% linhas. Pipeline CI bloqueia se < 70%. | Alta | G | T-022, T-028, T-033 | ✅ (118 testes novos — repositories/controllers/middlewares/auth+users.service/instances.service extra — 313→431 testes, 38→44 suites. Cobertura: **80.12% lines**, 79.12% statements, 74.42% branches, 85.57% functions (todas ≥70%, threshold do jest.config mantido em 70). CI: `ci.yml` roda `test:coverage` no job api, bloqueando <70%) |
 | T-050 | Cobertura de testes frontend (60%+) | Karma coverage ≥ 60%. Cypress e2e roda nos 4 fluxos críticos sem falha. | Alta | G | T-026, T-034, T-037 | ⬜ |
 | T-051 | Deploy em produção (Docker + VPS/Cloud) | App acessível via HTTPS. Deploy sem downtime. Rollback em < 2 min. | Alta | G | T-049, T-050 | 🟡 PREPARADO (infra pronta, falta o deploy real no host do usuário): `docker-compose.prod.yml` (nginx público + api/redis/evolution/evolution-pg/bull-board internos), `apps/api/Dockerfile.prod` (slim+openssl, tsx, migrate deploy no start), `apps/web/Dockerfile.prod` (build Angular + envsubst → nginx servindo `dist/web/browser`), `nginx/whatflow.conf` (SPA + proxy `/v1`+`/socket.io` WS, real-IP Cloudflare, gzip, TLS Origin Cert opcional), `.env.prod.example`, runbook `docs/DEPLOY.md` (VPS Ubuntu + Cloudflare Full strict + rollback <2min). `docker compose -f docker-compose.prod.yml config` válido. Falta: VPS+domínio+Origin Cert+segredos (ação do usuário) |
-| T-052 | Documentação técnica e README | Dev novo roda o projeto em < 30min seguindo o README. Swagger acessível. | Média | M | T-051 | ⬜ |
+| T-052 | Documentação técnica e README | Dev novo roda o projeto em < 30min seguindo o README. Swagger acessível. | Média | M | T-051 | ✅ (README reescrito: stack/arquitetura, setup <30min, docker compose up, migrations, scripts reais, troubleshooting, convenções. Swagger: `GET /docs` (swagger-ui-express) + `GET /v1/openapi.json` lendo `docs/WhatFlow_openapi.yaml`, montado antes do helmet (CSP), 404 amigável se o YAML faltar. **Validado ao vivo** no Docker (200 OK) — corrigido `Dockerfile.dev`/`Dockerfile.prod` p/ copiar `docs/` (faltava, achado nesta verificação)) |
 
 ---
 
