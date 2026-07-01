@@ -36,7 +36,7 @@
 
 | # | Item | Detalhe |
 |---|------|---------|
-| P-04 | **Design system / Storybook (T-009)** | Tema global, tokens e componentes base documentados (Storybook ou demo page). Hoje há só estilo mínimo. |
+| ~~P-04~~ | ~~Design system / Storybook (T-009)~~ | ✅ **FEITO** (2026-07-01): o tema global/tokens/mixins já existiam (`styles/_variables.scss`, `_theme.scss` com Angular Material, `_mixins.scss`, classes `.wf-btn`/`.wf-input`/`.wf-badge`/`.card` em `styles.scss`) — o que faltava era **documentação visível**. Criada `StyleGuideComponent` (`/settings/style-guide`, link "Design System" nas Configurações) mostrando cores, neutros, tipografia, espaçamento, raios, botões, campos, badges e card — tudo com as classes/tokens reais do app (não sintético). Optei por demo page em vez de Storybook (zero deps novas, documenta o que já está em produção). Validado: dev server (hot-reload) compilou sem erro, 114 testes mantidos. |
 | ~~P-05~~ | ~~Breadcrumbs + navegação (T-010)~~ | ✅ **Resolvido**: `BreadcrumbsComponent` monta trilha por rota, `SidebarNavComponent` usa estado ativo via `RouterLinkActive` e os rótulos principais estão definidos. |
 | ~~P-06~~ | ~~`forgot-password` real~~ | ✅ **Resolvido** (2026-06-30): `POST /v1/auth/forgot-password` dispara `resetPasswordForEmail` via Supabase Auth com redirect para `/auth/reset-password`; frontend ganhou formulário de solicitação e tela para gravar nova senha a partir do link de recuperação. Requer SMTP configurado no Supabase e `supabaseUrl`/`supabaseAnonKey` públicos no environment do web para concluir a troca de senha. |
 | ~~P-07~~ | ~~Dashboard com métricas reais~~ | ✅ **Resolvido**: dashboard consome endpoints de analytics, exibe KPIs reais, gráfico de volume de mensagens e exportação CSV por período. |

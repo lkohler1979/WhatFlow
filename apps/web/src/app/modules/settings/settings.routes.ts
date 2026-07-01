@@ -15,4 +15,9 @@ export const SETTINGS_ROUTES: Routes = [
     loadComponent: () =>
       import('./components/webhook-list/webhook-list.component').then(m => m.WebhookListComponent),
   },
+  {
+    path: 'style-guide',
+    loadComponent: () =>
+      import('./components/style-guide/style-guide.component').then(m => m.StyleGuideComponent),
+  },
 ];
