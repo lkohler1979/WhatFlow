@@ -88,7 +88,7 @@ function node(type: NodeType, index = 0): Cypress.Chainable<JQuery<HTMLElement>>
 }
 
 function selectNode(type: NodeType, index = 0): void {
-  node(type, index).click();
+  node(type, index).click({ force: true });
 }
 
 function addNode(type: NodeType): void {
@@ -226,7 +226,9 @@ describe('Flow Builder visual', () => {
     cy.contains('.preview', 'Olá Cliente Teste').should('be.visible');
 
     selectNode('MENU');
-    cy.get('[data-cy="menu-text"]').type('Escolha uma opção, {{cliente}}');
+    cy.get('[data-cy="menu-text"]').type('Escolha uma opção, {{cliente}}', {
+      parseSpecialCharSequences: false,
+    });
     cy.get('[data-cy="add-menu-option"]').click();
     cy.get('[data-cy="add-menu-option"]').click();
     cy.get('[data-cy="menu-option-label"]').eq(0).clear().type('Comprar');
@@ -249,12 +251,16 @@ describe('Flow Builder visual', () => {
     cy.get('[data-cy="webhook-method"]').select('POST');
 
     selectNode('AI');
-    cy.get('[data-cy="node-ai-prompt"]').type('Responda sobre {{ultima_mensagem}}');
+    cy.get('[data-cy="node-ai-prompt"]').type('Responda sobre {{ultima_mensagem}}', {
+      parseSpecialCharSequences: false,
+    });
     cy.contains('.preview', 'Responda sobre oi').should('be.visible');
 
     selectNode('IMAGE');
     cy.get('[data-cy="media-url"]').type('https://example.test/banner.png');
-    cy.get('[data-cy="media-caption"]').type('Banner para {{cliente}}');
+    cy.get('[data-cy="media-caption"]').type('Banner para {{cliente}}', {
+      parseSpecialCharSequences: false,
+    });
     cy.contains('.preview', 'Banner para Cliente Teste').should('be.visible');
 
     dragNode('TEXT', 160, 90);

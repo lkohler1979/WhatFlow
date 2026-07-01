@@ -8,5 +8,13 @@ export default defineConfig({
     video: false,
     viewportWidth: 1366,
     viewportHeight: 900,
+    setupNodeEvents(on) {
+      on('task', {
+        log(message: string) {
+          console.log(message);
+          return null;
+        },
+      });
+    },
   },
 });

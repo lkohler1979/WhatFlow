@@ -20,13 +20,15 @@ const PAGE_SIZE = 30;
   imports: [ReactiveFormsModule],
   template: `
     @if (!conversation) {
-      <div class="empty">
+      <div class="empty" data-cy="chat-window-empty">
         <p class="muted">Selecione uma conversa para começar.</p>
       </div>
     } @else {
-      <header class="chat-head">
+      <header class="chat-head" data-cy="chat-header">
         <div class="who">
-          <strong>{{ conversation.contact.name || conversation.contact.phone }}</strong>
+          <strong data-cy="chat-contact-name">{{
+            conversation.contact.name || conversation.contact.phone
+          }}</strong>
           <span class="phone">{{ conversation.contact.phone }}</span>
         </div>
         <button

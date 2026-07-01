@@ -13,18 +13,23 @@ import { AuthService } from '@core/services/auth.service';
       <form [formGroup]="form" (ngSubmit)="submit()">
         <label>
           E-mail
-          <input type="email" formControlName="email" autocomplete="email" />
+          <input type="email" formControlName="email" autocomplete="email" data-cy="login-email" />
         </label>
         <label>
           Senha
-          <input type="password" formControlName="password" autocomplete="current-password" />
+          <input
+            type="password"
+            formControlName="password"
+            autocomplete="current-password"
+            data-cy="login-password"
+          />
         </label>
 
         @if (error()) {
-          <p class="error">{{ error() }}</p>
+          <p class="error" data-cy="login-error">{{ error() }}</p>
         }
 
-        <button type="submit" [disabled]="form.invalid || loading()">
+        <button type="submit" [disabled]="form.invalid || loading()" data-cy="login-submit">
           {{ loading() ? 'Entrando...' : 'Entrar' }}
         </button>
       </form>

@@ -339,12 +339,22 @@ export class FlowBuilderComponent implements OnInit {
   variables = computed(() => deriveVariables(this.nodes()));
 
   ngOnInit(): void {
-    const id = this.route.snapshot.paramMap.get('id');
-    if (!id) {
-      this.error.set('Fluxo não informado');
-      this.loading.set(false);
-      return;
-    }
+    this.route.paramMap.subscribe(params => {
+      const id = params.get('id');
+      if (!id) {
+        this.error.set('Fluxo não informado');
+        this.loading.set(false);
+        return;
+      }
+      this.loadFlow(id);
+    });
+
+    this.triggerCtrl.valueChanges.subscribe(() => this.markDirty());
+    this.triggerValueCtrl.valueChanges.subscribe(() => this.markDirty());
+  }
+
+  private loadFlow(id: string): void {
+    this.loading.set(true);
     this.svc.get(id).subscribe({
       next: f => {
         this.flow.set(f);
@@ -355,6 +365,9 @@ export class FlowBuilderComponent implements OnInit {
         if (f.status !== 'DRAFT') {
           this.triggerCtrl.disable({ emitEvent: false });
           this.triggerValueCtrl.disable({ emitEvent: false });
+        } else {
+          this.triggerCtrl.enable({ emitEvent: false });
+          this.triggerValueCtrl.enable({ emitEvent: false });
         }
         this.loading.set(false);
       },
@@ -363,9 +376,6 @@ export class FlowBuilderComponent implements OnInit {
         this.loading.set(false);
       },
     });
-
-    this.triggerCtrl.valueChanges.subscribe(() => this.markDirty());
-    this.triggerValueCtrl.valueChanges.subscribe(() => this.markDirty());
   }
 
   triggerLabel(t: TriggerType): string {

@@ -39,20 +39,21 @@ const PAGE_SIZE = 20;
       </form>
     </div>
 
-    <div class="list" (scroll)="onScroll($event)">
+    <div class="list" data-cy="conversation-list" (scroll)="onScroll($event)">
       @if (error()) {
         <p class="error">{{ error() }}</p>
       }
 
       @if (loading() && items().length === 0) {
-        <p class="muted">Carregando conversas...</p>
+        <p class="muted" data-cy="conversation-list-loading">Carregando conversas...</p>
       } @else if (items().length === 0) {
-        <p class="muted">Nenhuma conversa encontrada.</p>
+        <p class="muted" data-cy="conversation-list-empty">Nenhuma conversa encontrada.</p>
       } @else {
         @for (conv of items(); track conv.id) {
           <button
             type="button"
             class="conv"
+            data-cy="conversation-item"
             [class.active]="conv.id === selectedId"
             (click)="select.emit(conv)"
           >

@@ -40,13 +40,13 @@ const MESSAGE_LABEL: Record<CampaignMessageType, string> = {
       <header class="page-head">
         <div>
           <h1>Campanhas</h1>
-          <p class="muted">{{ total() }} campanha(s)</p>
+          <p class="muted" data-cy="campaigns-total">{{ total() }} campanha(s)</p>
         </div>
         <button type="button" class="wf-btn" (click)="reloadAll()">Atualizar</button>
       </header>
 
       @if (error()) {
-        <p class="error">{{ error() }}</p>
+        <p class="error" data-cy="campaigns-error">{{ error() }}</p>
       }
 
       <section class="workspace">
@@ -58,12 +58,17 @@ const MESSAGE_LABEL: Record<CampaignMessageType, string> = {
 
           <label>
             <span>Nome</span>
-            <input class="wf-input" formControlName="name" placeholder="Campanha" />
+            <input
+              class="wf-input"
+              formControlName="name"
+              placeholder="Campanha"
+              data-cy="campaign-name"
+            />
           </label>
 
           <label>
             <span>Instância</span>
-            <select class="wf-input" formControlName="instanceId">
+            <select class="wf-input" formControlName="instanceId" data-cy="campaign-instance">
               <option value="">Selecione</option>
               @for (inst of instances(); track inst.id) {
                 <option [value]="inst.id">{{ inst.name }} · {{ inst.status }}</option>
@@ -95,6 +100,7 @@ const MESSAGE_LABEL: Record<CampaignMessageType, string> = {
               rows="4"
               formControlName="messageContent"
               placeholder="Texto da mensagem"
+              data-cy="campaign-message"
             ></textarea>
           </label>
 
@@ -155,9 +161,10 @@ const MESSAGE_LABEL: Record<CampaignMessageType, string> = {
                   <p class="muted">Nenhum contato disponível.</p>
                 } @else {
                   @for (contact of filteredContacts(); track contact.id) {
-                    <label class="contact-row">
+                    <label class="contact-row" data-cy="campaign-contact-row">
                       <input
                         type="checkbox"
+                        data-cy="campaign-contact-checkbox"
                         [checked]="isSelected(contact.id)"
                         (change)="toggleContact(contact.id)"
                       />
@@ -228,6 +235,7 @@ const MESSAGE_LABEL: Record<CampaignMessageType, string> = {
           <button
             class="wf-btn wf-btn--primary"
             type="submit"
+            data-cy="campaign-submit"
             [disabled]="!canCreate() || creating()"
           >
             {{ creating() ? 'Criando...' : 'Criar campanha' }}
@@ -254,16 +262,16 @@ const MESSAGE_LABEL: Record<CampaignMessageType, string> = {
           </div>
 
           @if (loading()) {
-            <p class="muted">Carregando...</p>
+            <p class="muted" data-cy="campaigns-loading">Carregando...</p>
           } @else if (campaigns().length === 0) {
-            <p class="muted">Nenhuma campanha encontrada.</p>
+            <p class="muted" data-cy="campaigns-empty">Nenhuma campanha encontrada.</p>
           } @else {
-            <div class="rows">
+            <div class="rows" data-cy="campaign-list">
               @for (campaign of campaigns(); track campaign.id) {
-                <article class="campaign">
+                <article class="campaign" data-cy="campaign-card">
                   <div class="campaign-top">
                     <div>
-                      <strong>{{ campaign.name }}</strong>
+                      <strong data-cy="campaign-card-name">{{ campaign.name }}</strong>
                       <p class="muted">
                         {{ messageLabel(campaign.messageType) }} ·
                         {{ campaign.totalContacts }} contato(s)
@@ -749,10 +757,11 @@ export class CampaignsComponent implements OnInit {
         name: raw.name.trim(),
         instanceId: raw.instanceId,
         messageType: raw.messageType,
-        messageContent: raw.messageContent.trim() || null,
-        mediaUrl: raw.mediaUrl.trim() || null,
-        mediaCaption: raw.messageType === 'TEXT' ? null : raw.messageContent.trim() || null,
-        scheduledAt: raw.scheduledAt ? new Date(raw.scheduledAt).toISOString() : null,
+        messageContent: raw.messageContent.trim() || undefined,
+        mediaUrl: raw.mediaUrl.trim() || undefined,
+        mediaCaption:
+          raw.messageType === 'TEXT' ? undefined : raw.messageContent.trim() || undefined,
+        scheduledAt: raw.scheduledAt ? new Date(raw.scheduledAt).toISOString() : undefined,
         delayMinMs: Number(raw.delayMinMs),
         delayMaxMs: Number(raw.delayMaxMs),
         ...(fromCsv
