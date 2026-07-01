@@ -160,7 +160,7 @@ export class TagAutocompleteComponent {
   @Input() allowCreate = true;
 
   /** Emite quando o usuário escolhe uma tag existente. */
-  @Output() select = new EventEmitter<Tag>();
+  @Output() chosen = new EventEmitter<Tag>();
   /** Emite o nome de uma nova tag a criar. */
   @Output() create = new EventEmitter<string>();
   /** Emite quando o usuário remove uma tag selecionada. */
@@ -198,7 +198,7 @@ export class TagAutocompleteComponent {
   });
 
   choose(tag: Tag): void {
-    this.select.emit(tag);
+    this.chosen.emit(tag);
     this.reset();
   }
 

@@ -18,9 +18,9 @@ describe('Campanhas', () => {
 
     cy.get('[data-cy="campaign-submit"]').should('not.be.disabled').click();
 
-    cy.contains('[data-cy="campaign-card-name"]', campaignName, { timeout: 10000 }).should(
-      'be.visible',
-    );
+    cy.contains('[data-cy="campaign-card-name"]', campaignName, { timeout: 10000 })
+      .scrollIntoView()
+      .should('be.visible');
   });
 
   it('lista as campanhas existentes ou mostra o estado vazio', () => {

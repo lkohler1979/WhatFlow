@@ -33,7 +33,7 @@ const PAGE_SIZE = 20;
           [selected]="tagFilter() ? [tagFilter()!] : []"
           [allowCreate]="false"
           placeholder="Filtrar por tag..."
-          (select)="setTagFilter($event)"
+          (chosen)="setTagFilter($event)"
           (remove)="clearTagFilter()"
         />
       </form>
@@ -55,7 +55,7 @@ const PAGE_SIZE = 20;
             class="conv"
             data-cy="conversation-item"
             [class.active]="conv.id === selectedId"
-            (click)="select.emit(conv)"
+            (click)="selected.emit(conv)"
           >
             <div class="avatar">
               @if (conv.contact.avatarUrl) {
@@ -211,7 +211,7 @@ export class ConversationListComponent implements OnInit {
   private fb = inject(FormBuilder);
 
   @Input() selectedId: string | null = null;
-  @Output() select = new EventEmitter<Conversation>();
+  @Output() selected = new EventEmitter<Conversation>();
 
   statusOptions = STATUS_OPTIONS;
 

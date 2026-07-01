@@ -116,10 +116,19 @@ describe('authController', () => {
     expect(anySvc(authService).logout).toHaveBeenCalledWith('tkn');
     expect(res.statusCode).toBe(204);
   });
-  it('me devolve claims do token', async () => {
-    const { req, res } = ctx({ userRole: 'OWNER' as never });
+  it('me devolve usuário + tenant completos (P-11)', async () => {
+    const meResult = {
+      id: 'uid-1',
+      tenantId: 't1',
+      role: 'OWNER',
+      user: { id: 'uid-1', email: 'a@b.com', fullName: 'A B' },
+      tenant: { id: 't1', name: 'Acme', slug: 'acme' },
+    };
+    anySvc(authService).me.mockResolvedValue(meResult);
+    const { req, res } = ctx();
     await authController.me(req, res);
-    expect(res.body).toEqual({ id: 'uid-1', tenantId: 't1', role: 'OWNER' });
+    expect(anySvc(authService).me).toHaveBeenCalledWith('uid-1');
+    expect(res.body).toEqual(meResult);
   });
 });
 

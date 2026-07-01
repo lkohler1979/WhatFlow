@@ -22,6 +22,30 @@ interface AuthResult {
   session: SessionDto;
 }
 
+/** P-11: usuário e tenant completos para GET /auth/me. */
+interface MeResult {
+  id: string;
+  tenantId: string;
+  role: string;
+  user: {
+    id: string;
+    email: string;
+    fullName: string;
+    avatarUrl: string | null;
+    role: string;
+    isActive: boolean;
+    lastLoginAt: Date | null;
+    createdAt: Date;
+  };
+  tenant: {
+    id: string;
+    name: string;
+    slug: string;
+    plan: string;
+    settings: unknown;
+  };
+}
+
 /** Gera um slug único a partir do nome da empresa. */
 function slugify(name: string): string {
   return name
@@ -178,6 +202,35 @@ export const authService = {
     await supabaseAdmin.auth.admin
       .signOut(accessToken)
       .catch(err => logger.warn({ err }, 'Falha ao invalidar sessão no logout'));
+  },
+
+  /** P-11: usuário + tenant completos (GET /auth/me). */
+  async me(supabaseUid: string): Promise<MeResult> {
+    const profile = await authRepository.findUserWithTenantBySupabaseUid(supabaseUid);
+    if (!profile) throw new UnauthorizedError('Usuário não encontrado');
+
+    return {
+      id: profile.supabaseUid,
+      tenantId: profile.tenantId,
+      role: profile.role,
+      user: {
+        id: profile.supabaseUid,
+        email: profile.email,
+        fullName: profile.fullName,
+        avatarUrl: profile.avatarUrl,
+        role: profile.role,
+        isActive: profile.isActive,
+        lastLoginAt: profile.lastLoginAt,
+        createdAt: profile.createdAt,
+      },
+      tenant: {
+        id: profile.tenant.id,
+        name: profile.tenant.name,
+        slug: profile.tenant.slug,
+        plan: profile.tenant.plan,
+        settings: profile.tenant.settings,
+      },
+    };
   },
 
   /** Helper interno: autentica e devolve tokens + uid. */

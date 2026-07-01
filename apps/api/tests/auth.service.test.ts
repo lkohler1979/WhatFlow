@@ -203,3 +203,50 @@ describe('authService.logout', () => {
     await expect(authService.logout('acc')).resolves.toBeUndefined();
   });
 });
+
+describe('authService.me (P-11)', () => {
+  it('devolve usuário + tenant completos', async () => {
+    mockRepo.findUserWithTenantBySupabaseUid.mockResolvedValue({
+      supabaseUid: 'uid-1',
+      tenantId: 't1',
+      role: 'OWNER',
+      email: 'a@b.com',
+      fullName: 'A B',
+      avatarUrl: null,
+      isActive: true,
+      lastLoginAt: null,
+      createdAt: new Date('2026-01-01'),
+      tenant: {
+        id: 't1',
+        name: 'Acme',
+        slug: 'acme',
+        plan: 'FREE',
+        settings: {},
+      },
+    } as never);
+
+    const result = await authService.me('uid-1');
+
+    expect(result).toEqual({
+      id: 'uid-1',
+      tenantId: 't1',
+      role: 'OWNER',
+      user: {
+        id: 'uid-1',
+        email: 'a@b.com',
+        fullName: 'A B',
+        avatarUrl: null,
+        role: 'OWNER',
+        isActive: true,
+        lastLoginAt: null,
+        createdAt: new Date('2026-01-01'),
+      },
+      tenant: { id: 't1', name: 'Acme', slug: 'acme', plan: 'FREE', settings: {} },
+    });
+  });
+
+  it('lança 401 se o usuário não for encontrado', async () => {
+    mockRepo.findUserWithTenantBySupabaseUid.mockResolvedValue(null);
+    await expect(authService.me('uid-x')).rejects.toMatchObject({ statusCode: 401 });
+  });
+});

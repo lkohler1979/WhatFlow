@@ -66,7 +66,7 @@ function parseLine(line: string, delimiter: string): string[] {
 
 export function parseCsvPhones(csv: string): CsvPhonesResult {
   const lines = csv
-    .replace(/^﻿/, '')
+    .replace(/^\uFEFF/, '')
     .split(/\r?\n/)
     .filter(l => l.trim().length > 0);
 

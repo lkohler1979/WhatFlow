@@ -25,7 +25,7 @@ jobs:
       - run: npm run build --workspace=apps/api
 
   web:
-    name: Web — Test + Build (Angular)
+    name: Web — Lint + Test + Build (Angular)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,13 +34,13 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
+      # ESLint do Angular (P-08): angular-eslint 17.5.3 + .eslintrc.json em apps/web.
+      - run: npm run lint --workspace=apps/web
       # Karma/Jasmine (T-050): ubuntu-latest já traz Chrome instalado.
       - run: npm run test --workspace=apps/web -- --watch=false --code-coverage
         env:
           CHROME_BIN: /usr/bin/google-chrome
       - run: npm run build:prod --workspace=apps/web
-      # TODO(P-08): habilitar lint do Angular quando houver angular-eslint configurado
-      # - run: npm run lint --workspace=apps/web
 
   deploy-staging:
     name: Deploy Staging

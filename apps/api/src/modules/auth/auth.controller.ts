@@ -36,10 +36,7 @@ export const authController = {
   },
 
   async me(req: Request, res: Response): Promise<void> {
-    res.status(200).json({
-      id: req.user?.sub,
-      tenantId: req.tenantId,
-      role: req.userRole,
-    });
+    const result = await authService.me(req.user?.sub as string);
+    res.status(200).json(result);
   },
 };
