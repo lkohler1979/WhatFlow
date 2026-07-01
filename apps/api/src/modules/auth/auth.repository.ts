@@ -43,6 +43,13 @@ export const authRepository = {
     return prisma.user.findUnique({ where: { supabaseUid } });
   },
 
+  /** Usuário + tenant completos (P-11 — usado por GET /auth/me). */
+  async findUserWithTenantBySupabaseUid(
+    supabaseUid: string,
+  ): Promise<(User & { tenant: Tenant }) | null> {
+    return prisma.user.findUnique({ where: { supabaseUid }, include: { tenant: true } });
+  },
+
   async touchLastLogin(supabaseUid: string): Promise<void> {
     await prisma.user.updateMany({
       where: { supabaseUid },

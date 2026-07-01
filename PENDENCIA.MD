@@ -51,7 +51,7 @@
 
 | # | Item | Detalhe |
 |---|------|---------|
-| P-08 | **ESLint do Angular** | Ainda não há config de lint no `apps/web`. Adicionar `angular-eslint` (flat config) e reativar `lint --workspace=apps/web` no CI. |
+| ~~P-08~~ | ~~ESLint do Angular~~ | ✅ **FEITO** (2026-07-01): `angular-eslint@17.5.3` (pacotes separados — a versão unificada só existe p/ Angular 18+), `.eslintrc.json` na raiz do `apps/web` + target `lint` no `angular.json`. Achou e corrigiu 5 problemas reais: BOM literal em regex, imports/params não usados, e **2 `@Output()` chamados `select`** colidindo com o evento nativo do DOM (`@angular-eslint/no-output-native`) — renomeados p/ `selected`/`chosen` em `conversation-list` e `tag-autocomplete` (+ 4 consumidores atualizados). Isolou `@typescript-eslint@7.x` localmente em `apps/web` p/ não colidir com o `v8.x` hoisted da API. `lint --workspace=apps/web` limpo. |
 | ~~P-09~~ | ~~Testes do frontend (Karma/Jasmine)~~ | ✅ **FEITO** (T-050, 2026-06-30): `karma.conf.js`/`test.ts`/`tsconfig.spec.json`/target `test`; 114 testes, 84% linhas. `test --workspace=apps/web` reativado no CI (`ci.yml`, job web, com `CHROME_BIN`). |
 | ~~P-10~~ | ~~Cobertura backend ≥ 70% (T-049)~~ | ✅ **FEITO** (2026-06-30): 118 testes novos (repositories/controllers/middlewares/auth+users.service), 80.12% linhas. `test:coverage` ligado no CI (job api). |
 
@@ -59,7 +59,7 @@
 
 | # | Item | Detalhe |
 |---|------|---------|
-| P-11 | **`GET /auth/me` enriquecido** | Hoje retorna `{ id, tenantId, role }`. Opcional: retornar `user` + `tenant` completos (o frontend já persiste o user do login/register, então não é bloqueante). |
+| ~~P-11~~ | ~~`GET /auth/me` enriquecido~~ | ✅ **FEITO** (2026-07-01): retorna `{ id, tenantId, role, user: {...}, tenant: {...} }` (mantidos os campos flat p/ compatibilidade). `authRepository.findUserWithTenantBySupabaseUid` (Prisma `include: tenant`); 404→401 se o perfil não existir. Validado ao vivo. |
 | ~~P-12~~ | ~~Migrations no Supabase~~ | ✅ **Resolvido** (2026-06-30): README documenta o fluxo **baseline + `prisma migrate deploy`**, quickstart passou a usar `npm run prisma:deploy` e os scripts raiz/API agora expõem `prisma:deploy`. |
 | P-13 | **Resolução do `rxjs`** | Mantido via `overrides` (raiz) + `paths` no `tsconfig` do web (conflito 7.8.1 vs 7.8.2). Revisar ao subir versões do Angular/devkit. |
 
