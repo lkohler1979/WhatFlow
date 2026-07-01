@@ -53,7 +53,7 @@ const STATUS_LABEL: Record<ConversationStatus, string> = {
         <wf-tag-autocomplete
           [selected]="selectedTags()"
           placeholder="Buscar ou criar tag..."
-          (select)="onAttach($event)"
+          (chosen)="onAttach($event)"
           (create)="onCreate($event)"
           (remove)="onDetach($event)"
         />

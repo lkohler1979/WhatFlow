@@ -114,7 +114,7 @@ interface CsvPreview {
               <span>Tags</span>
               <wf-tag-autocomplete
                 [selected]="editingTags()"
-                (select)="attachTag($event)"
+                (chosen)="attachTag($event)"
                 (create)="createAndAttach($event)"
                 (remove)="detachTag($event)"
               />

@@ -641,13 +641,13 @@ export class NodePropsComponent {
     this.focused = el;
     // Descobre a chave do campo a partir do atributo de placeholder não é confiável;
     // usamos a última chave editada/focada.
-    const key = this.focusedKey() || this.inferKey(el);
+    const key = this.focusedKey() || this.inferKey();
     this.focusedKey.set(key);
     this.patch.emit({ [key]: next });
   }
 
   /** Heurística: deduz a chave do campo (fallback quando ainda não houve input). */
-  private inferKey(el: HTMLTextAreaElement | HTMLInputElement): string {
+  private inferKey(): string {
     const n = this.node();
     if (!n) return 'text';
     // AI usa 'prompt'; demais campos interpoláveis usam 'text'.

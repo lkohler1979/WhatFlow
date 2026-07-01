@@ -12,7 +12,7 @@ import { ContactInfoPanelComponent } from './components/contact-info-panel/conta
   template: `
     <div class="inbox">
       <aside class="col col-list">
-        <wf-conversation-list [selectedId]="selected()?.id ?? null" (select)="onSelect($event)" />
+        <wf-conversation-list [selectedId]="selected()?.id ?? null" (selected)="onSelect($event)" />
       </aside>
       <section class="col col-chat">
         <wf-chat-window

@@ -1,13 +1,4 @@
-import {
-  Component,
-  ElementRef,
-  computed,
-  inject,
-  input,
-  output,
-  signal,
-  viewChild,
-} from '@angular/core';
+import { Component, ElementRef, computed, input, output, signal, viewChild } from '@angular/core';
 import { CdkDrag, CdkDragEnd, CdkDragMove } from '@angular/cdk/drag-drop';
 import type { FlowEdge, FlowNode } from './flows.models';
 import { NODE_META } from './flows.models';
