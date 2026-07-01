@@ -11,6 +11,7 @@ import { RouterLink } from '@angular/router';
       <nav class="settings-nav">
         <a routerLink="ai" class="wf-btn wf-btn--primary">Configuração de IA</a>
         <a routerLink="webhooks" class="wf-btn wf-btn--primary">Webhooks</a>
+        <a routerLink="style-guide" class="wf-btn">Design System</a>
       </nav>
     </section>
   `,
