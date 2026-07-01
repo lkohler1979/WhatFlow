@@ -45,15 +45,15 @@
 
 | # | Item | Detalhe |
 |---|------|---------|
-| P-19 | **Validação visual do Flow Builder no browser (T-023/T-024/T-025)** | 🟡 **Em andamento** (2026-06-30): adicionados seletores estáveis (`data-cy`) e spec Cypress `flow-builder.cy.ts` cobrindo criar fluxo → editar nós/propriedades → variável `{{}}` + preview → mover card → conectar TEXT/MENU/CONDITION → salvar → reabrir → publicar → duplicar. `ng build` e typecheck do spec passaram. Falta executar o Cypress em browser; nesta sessão o `ng serve` falhou no sandbox (`listen EACCES`/`spawn EPERM`) e a execução fora do sandbox foi negada. |
+| ~~P-19~~ | ~~Validação visual do Flow Builder no browser~~ | ✅ **FEITO** (2026-06-30, via T-050): `flow-builder.cy.ts` roda de verdade (Electron headless) e passa — cria fluxo → edita nós/propriedades → variável `{{}}` + preview → move card → conecta TEXT/MENU/CONDITION → salva → reabre → publica → duplica. Achou e corrigiu um **bug real**: `ngOnInit` lia `route.snapshot.paramMap` (uma vez só) em vez de `route.paramMap.subscribe` — ao duplicar um fluxo, a URL mudava mas os dados do fluxo antigo continuavam na tela até F5 manual. Corrigido. |
 
 ## 🧪 Qualidade / CI (T-050)
 
 | # | Item | Detalhe |
 |---|------|---------|
-| P-08 | **ESLint do Angular** | Não há config de lint no `apps/web`. Adicionar `angular-eslint` (flat config) e reativar `lint --workspace=apps/web` no CI. |
-| P-09 | **Testes do frontend (Karma/Jasmine)** | Falta `tsconfig.spec.json` + target `test` no `angular.json` + specs. Reativar `test --workspace=apps/web` no CI. |
-| P-10 | **Cobertura backend ≥ 70% (T-049)** | Hoje só testes de schema (Zod). Adicionar testes de service/controller (mock de Supabase/Prisma) e ligar `test:coverage` no CI. |
+| P-08 | **ESLint do Angular** | Ainda não há config de lint no `apps/web`. Adicionar `angular-eslint` (flat config) e reativar `lint --workspace=apps/web` no CI. |
+| ~~P-09~~ | ~~Testes do frontend (Karma/Jasmine)~~ | ✅ **FEITO** (T-050, 2026-06-30): `karma.conf.js`/`test.ts`/`tsconfig.spec.json`/target `test`; 114 testes, 84% linhas. `test --workspace=apps/web` reativado no CI (`ci.yml`, job web, com `CHROME_BIN`). |
+| ~~P-10~~ | ~~Cobertura backend ≥ 70% (T-049)~~ | ✅ **FEITO** (2026-06-30): 118 testes novos (repositories/controllers/middlewares/auth+users.service), 80.12% linhas. `test:coverage` ligado no CI (job api). |
 
 ## 🛠️ Backend — dívidas técnicas pequenas
 
