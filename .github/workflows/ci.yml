@@ -20,7 +20,8 @@ jobs:
       - run: npm ci
       - run: npm run prisma:generate
       - run: npm run lint --workspace=apps/api
-      - run: npm run test --workspace=apps/api
+      # Cobertura obrigatória (T-049): o gate de 70% do jest.config bloqueia o CI se <70%.
+      - run: npm run test:coverage --workspace=apps/api
       - run: npm run build --workspace=apps/api
 
   web:
