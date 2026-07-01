@@ -309,14 +309,28 @@ export class ChatWindowComponent implements AfterViewChecked {
   private shouldScrollBottom = false;
   private preserveFromTop = false;
   private lastScrollHeight = 0;
+  /** Id da conversa cujas mensagens já foram carregadas (evita recarregar em toda
+   *  atualização de metadado — realtime, tags, bot, status — da mesma conversa). */
+  private loadedConversationId: string | null = null;
 
   form = this.fb.nonNullable.group({
     text: ['', [Validators.required, Validators.minLength(1)]],
   });
 
-  /** Chamado pelo InboxComponent quando muda a conversa selecionada. */
+  /**
+   * Chamado pelo InboxComponent a cada mudança de referência do objeto
+   * `selected` — o que inclui trocar de conversa E atualizações de metadado da
+   * MESMA conversa (tags/bot/status via realtime ou ações do próprio usuário).
+   * Só recarrega o histórico quando o `id` realmente muda; caso contrário,
+   * apenas atualiza os dados exibidos (ex.: estado do bot no cabeçalho) sem
+   * apagar/rebuscar as mensagens — evita o "piscar" da tela a cada atualização.
+   */
   @Input() set selected(conv: Conversation | null) {
+    const isSameConversation = conv !== null && conv.id === this.loadedConversationId;
     this.conversation = conv;
+    if (isSameConversation) return;
+
+    this.loadedConversationId = conv?.id ?? null;
     this.messages.set([]);
     this.nextCursor = null;
     this.sendErr.set(null);
