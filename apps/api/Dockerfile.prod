@@ -1,0 +1,29 @@
+# API de produção. Debian (slim) — o engine do Prisma precisa de OpenSSL/glibc.
+# Contexto de build = raiz do repo (a API estende ../../tsconfig.base.json).
+# Roda com tsx (resolve os path aliases @core/@modules/... do tsconfig em runtime,
+# evitando a etapa frágil de reescrever aliases no output do tsc).
+FROM node:20-slim
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY tsconfig.base.json ./tsconfig.base.json
+# docs/ vive na raiz do monorepo — necessário para o Swagger (GET /docs) achar
+# o WhatFlow_openapi.yaml (core/swagger.ts procura em ../../docs relativo ao cwd).
+COPY docs/ ./docs/
+
+WORKDIR /app/apps/api
+COPY apps/api/package.json ./package.json
+# Instala TODAS as deps (tsx/prisma são devDeps usados em runtime/migração).
+RUN npm install
+COPY apps/api/ ./
+RUN npm run prisma:generate
+
+ENV NODE_ENV=production
+EXPOSE 3000
+
+# Aplica migrations (idempotente) e sobe o servidor. Se o banco estiver
+# inacessível, falha rápido — comportamento desejado em produção.
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=prisma/schema.prisma && npx tsx src/server.ts"]

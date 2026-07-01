@@ -1,0 +1,67 @@
+<div class="modal-backdrop" (click)="cancel()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <header class="modal-head">
+      <h2>{{ isEdit ? 'Editar webhook' : 'Novo webhook' }}</h2>
+      <button type="button" class="close" (click)="cancel()" aria-label="Fechar">&times;</button>
+    </header>
+
+    @if (error()) {
+    <p class="error">{{ error() }}</p>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <label>
+        <span>Nome</span>
+        <input class="wf-input" formControlName="name" placeholder="Ex.: Integração CRM" />
+      </label>
+
+      <label>
+        <span>URL de destino</span>
+        <input class="wf-input" formControlName="url" placeholder="https://exemplo.com/webhook" />
+      </label>
+
+      <label>
+        <span>Segredo (HMAC)</span>
+        <input
+          class="wf-input"
+          type="password"
+          formControlName="secret"
+          autocomplete="off"
+          [placeholder]="secretPlaceholder()"
+        />
+        @if (!isEdit) {
+        <small class="muted">Se deixar vazio, o WhatFlow gera um segredo de 32 bytes.</small>
+        } @else if (webhook?.hasSecret) {
+        <small class="muted">Há um segredo salvo. Por segurança ele não é exibido.</small>
+        }
+      </label>
+
+      <fieldset class="events" formArrayName="events">
+        <legend>Eventos</legend>
+        <div class="events-grid">
+          @for (ev of allEvents; track ev; let i = $index) {
+          <label class="check">
+            <input type="checkbox" [formControlName]="i" />
+            <span>{{ eventLabels[ev] }}</span>
+          </label>
+          }
+        </div>
+        @if (!hasEvent() && form.touched) {
+        <small class="error">Selecione ao menos um evento.</small>
+        }
+      </fieldset>
+
+      <label class="check active-toggle">
+        <input type="checkbox" formControlName="isActive" />
+        <span>Webhook ativo</span>
+      </label>
+
+      <div class="actions">
+        <button type="button" class="wf-btn" (click)="cancel()">Cancelar</button>
+        <button type="submit" class="wf-btn wf-btn--primary" [disabled]="saving() || form.invalid || !hasEvent()">
+          {{ saving() ? 'Salvando...' : isEdit ? 'Salvar alterações' : 'Criar webhook' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

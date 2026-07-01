@@ -3,6 +3,7 @@ import { logger } from '@core/logger.js';
 import { emitToTenant } from '@core/realtime.js';
 import { evolutionApiService } from '@integrations/evolution-api/evolution-api.service.js';
 import { campaignsRepository } from '@modules/campaigns/campaigns.repository.js';
+import { webhooksService } from '@modules/webhooks/webhooks.service.js';
 
 /** Payload enfileirado por campaignsService.start() (T-032). */
 export interface CampaignJobData {
@@ -192,6 +193,12 @@ export async function campaignProcessor(job: Job<CampaignJobData>): Promise<{
     status: 'COMPLETED',
   });
   log.info({ sent, failed, total }, 'Campanha concluída');
+
+  // Webhooks de saída (T-047): dispara `CAMPAIGN_COMPLETED`. Best-effort —
+  // dispatchEvent apenas enfileira e não propaga erro.
+  void webhooksService
+    .dispatchEvent(tenantId, 'CAMPAIGN_COMPLETED', { campaignId, sent, failed, total })
+    .catch(err => log.warn({ err }, 'Falha ao despachar webhook CAMPAIGN_COMPLETED'));
 
   return { sent, failed, total, status: 'COMPLETED' };
 }

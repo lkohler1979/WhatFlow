@@ -6,6 +6,7 @@ import { Server as SocketServer } from 'socket.io';
 import { config } from '@core/config.js';
 import { logger } from '@core/logger.js';
 import { setIo } from '@core/realtime.js';
+import { setupSwagger } from '@core/swagger.js';
 import { globalRateLimit } from '@middlewares/rate-limit.middleware.js';
 import { requestIdMiddleware } from '@middlewares/request-id.middleware.js';
 import { errorHandlerMiddleware } from '@middlewares/error-handler.middleware.js';
@@ -21,6 +22,8 @@ import { contactsRoutes } from '@modules/contacts/contacts.routes.js';
 import { aiRoutes } from '@modules/ai/ai.routes.js';
 import { conversationsRoutes } from '@modules/conversations/conversations.routes.js';
 import { tagsRoutes } from '@modules/tags/tags.routes.js';
+import { analyticsRoutes } from '@modules/analytics/analytics.routes.js';
+import { webhooksRoutes } from '@modules/webhooks/webhooks.routes.js';
 // import { flowsRoutes }            from '@modules/flows/flows.routes.js';
 // import { conversationsRoutes }    from '@modules/conversations/conversations.routes.js';
 // import { messagesRoutes }         from '@modules/messages/messages.routes.js';
@@ -48,6 +51,9 @@ export function createApp(): { app: Express; httpServer: HttpServer; io: SocketS
 
   // ── Middlewares globais ──
   app.use(requestIdMiddleware);
+  // Swagger UI antes do helmet: o CSP padrão do helmet bloqueia os assets inline
+  // do swagger-ui. Monta GET /docs (UI) e GET /v1/openapi.json (spec JSON).
+  setupSwagger(app, config.API_PREFIX);
   app.use(helmet());
   app.use(cors({ origin: config.CORS_ORIGINS.split(','), credentials: true }));
   app.use(express.json({ limit: '10mb' }));
@@ -66,11 +72,13 @@ export function createApp(): { app: Express; httpServer: HttpServer; io: SocketS
   router.use('/instances', instancesRoutes);
   router.use('/flows', flowsRoutes);
   router.use('/webhooks/evolution', webhookReceiverRoutes);
+  router.use('/webhooks', webhooksRoutes);
   router.use('/campaigns', campaignsRoutes);
   router.use('/contacts', contactsRoutes);
   router.use('/ai', aiRoutes);
   router.use('/conversations', conversationsRoutes);
   router.use('/tags', tagsRoutes);
+  router.use('/analytics', analyticsRoutes);
   // router.use('/flows',     flowsRoutes);
   // ... (descomentar conforme implementar)
 

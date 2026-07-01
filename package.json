@@ -9,6 +9,7 @@
     "test": "npm run test --workspaces --if-present",
     "test:e2e": "npm run e2e --workspace=apps/web",
     "prisma:migrate": "npm run prisma:migrate --workspace=apps/api",
+    "prisma:deploy": "npm run prisma:deploy --workspace=apps/api",
     "prisma:generate": "npm run prisma:generate --workspace=apps/api",
     "prisma:studio": "npm run prisma:studio --workspace=apps/api",
     "prepare": "husky"

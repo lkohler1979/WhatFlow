@@ -78,6 +78,9 @@ const NODE_H = 76;
       @for (node of nodes(); track node.id) {
         <div
           class="node"
+          data-cy="flow-node"
+          [attr.data-node-id]="node.id"
+          [attr.data-node-type]="node.type"
           cdkDrag
           [cdkDragFreeDragPosition]="{ x: node.position.x, y: node.position.y }"
           (cdkDragMoved)="onDragMove(node, $event)"
@@ -96,6 +99,7 @@ const NODE_H = 76;
           <!-- alça de entrada -->
           <button
             class="handle handle-in"
+            data-cy="node-handle-in"
             type="button"
             title="Entrada"
             (click)="onTargetClick($event, node.id)"
@@ -105,7 +109,9 @@ const NODE_H = 76;
           @for (h of outHandles(node); track h.id) {
             <button
               class="handle handle-out"
+              data-cy="node-handle-out"
               type="button"
+              [attr.data-source-handle]="h.id"
               [title]="h.label"
               [class.active]="isConnecting(node.id, h.id)"
               (click)="onSourceClick($event, node.id, h.id)"

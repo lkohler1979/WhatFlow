@@ -1,8 +1,9 @@
 import { supabaseAdmin, supabaseAuth } from '@core/supabase.js';
 import { logger } from '@core/logger.js';
+import { config } from '@core/config.js';
 import { ConflictError, UnauthorizedError, AppError } from '@core/errors.js';
 import { authRepository } from './auth.repository.js';
-import type { LoginDto, RegisterDto, RefreshDto } from './auth.schema.js';
+import type { ForgotPasswordDto, LoginDto, RegisterDto, RefreshDto } from './auth.schema.js';
 
 interface SessionDto {
   accessToken: string;
@@ -45,6 +46,15 @@ async function generateUniqueSlug(companyName: string): Promise<string> {
     }
   }
   return slug;
+}
+
+function getPasswordResetRedirectUrl(): string {
+  const frontendOrigin =
+    config.CORS_ORIGINS.split(',')
+      .map(origin => origin.trim())
+      .find(Boolean) ?? 'http://localhost:4200';
+
+  return `${frontendOrigin.replace(/\/+$/, '')}/auth/reset-password`;
 }
 
 export const authService = {
@@ -148,6 +158,18 @@ export const authService = {
       refreshToken: data.session.refresh_token,
       expiresIn: data.session.expires_in,
     };
+  },
+
+  /** Dispara o e-mail de recuperação de senha pelo Supabase Auth. */
+  async requestPasswordReset(dto: ForgotPasswordDto): Promise<void> {
+    const { error } = await supabaseAuth.auth.resetPasswordForEmail(dto.email, {
+      redirectTo: getPasswordResetRedirectUrl(),
+    });
+
+    if (error) {
+      logger.warn({ err: error }, 'Falha ao solicitar recuperação de senha no Supabase');
+      throw new AppError('Não foi possível enviar o e-mail de recuperação', 502, 'SUPABASE_ERROR');
+    }
   },
 
   /** Logout — invalida a sessão no Supabase quando possível. */

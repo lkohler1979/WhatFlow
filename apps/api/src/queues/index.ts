@@ -3,15 +3,16 @@ import { logger } from '@core/logger.js';
 import { queues } from './queue.registry.js';
 import { exampleWorker } from './workers/example.worker.js';
 import { campaignWorker } from './workers/campaign.worker.js';
+import { webhookWorker } from './workers/webhook.worker.js';
 
 export * from './queue.registry.js';
 export * from './queue.factory.js';
 
 /**
  * Workers ativos. O worker de campaign (T-033) faz o disparo com anti-ban.
- * O de webhook-delivery chega em tarefa posterior.
+ * O de webhook-delivery (T-047) entrega os webhooks de saída com HMAC e retry.
  */
-const workers: Worker[] = [exampleWorker, campaignWorker];
+const workers: Worker[] = [exampleWorker, campaignWorker, webhookWorker];
 
 /**
  * Sobe a infra de filas junto com o servidor. A connection do ioredis usa

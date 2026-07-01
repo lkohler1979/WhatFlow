@@ -46,13 +46,13 @@ export interface CampaignListResponse {
 
 export interface CampaignPayload {
   name: string;
-  description?: string | null;
+  description?: string;
   instanceId: string;
   messageType: CampaignMessageType;
-  messageContent?: string | null;
-  mediaUrl?: string | null;
-  mediaCaption?: string | null;
-  scheduledAt?: string | null;
+  messageContent?: string;
+  mediaUrl?: string;
+  mediaCaption?: string;
+  scheduledAt?: string;
   delayMinMs: number;
   delayMaxMs: number;
   /** Contatos já cadastrados selecionados. */

@@ -19,10 +19,12 @@ import { AuthService } from '@core/services/auth.service';
           </div>
           <div class="user-box">
             @if (auth.user(); as u) {
-              <span class="user-name">{{ u.fullName }}</span>
+              <span class="user-name" data-cy="user-name">{{ u.fullName }}</span>
               <span class="user-role">{{ u.role }}</span>
             }
-            <button type="button" class="logout" (click)="auth.logout()">Sair</button>
+            <button type="button" class="logout" data-cy="logout-button" (click)="auth.logout()">
+              Sair
+            </button>
           </div>
         </header>
         <main class="app-content">

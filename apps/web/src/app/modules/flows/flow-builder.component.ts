@@ -39,10 +39,11 @@ function uid(prefix: string): string {
   template: `
     <section class="builder">
       <header class="topbar">
-        <button class="wf-btn" (click)="back()">← Fluxos</button>
+        <button class="wf-btn" data-cy="back-to-flows" (click)="back()">← Fluxos</button>
         @if (flow(); as f) {
           <input
             class="wf-input name"
+            data-cy="flow-name"
             [value]="f.name"
             (change)="onNameChange($event)"
             [disabled]="!editable()"
@@ -60,12 +61,18 @@ function uid(prefix: string): string {
         }
         <button
           class="wf-btn wf-btn--primary"
+          data-cy="save-flow"
           (click)="save()"
           [disabled]="!editable() || saving() || !dirty()"
         >
           Salvar
         </button>
-        <button class="wf-btn" (click)="publish()" [disabled]="!editable() || saving()">
+        <button
+          class="wf-btn"
+          data-cy="publish-flow"
+          (click)="publish()"
+          [disabled]="!editable() || saving()"
+        >
           Publicar
         </button>
       </header>
@@ -76,8 +83,8 @@ function uid(prefix: string): string {
       @if (!editable() && flow()) {
         <p class="warn bar">
           Fluxo publicado é imutável. Use
-          <button class="link" (click)="duplicate()">Duplicar</button> para criar um rascunho
-          editável.
+          <button class="link" data-cy="duplicate-flow" (click)="duplicate()">Duplicar</button>
+          para criar um rascunho editável.
         </p>
       }
 
@@ -89,6 +96,7 @@ function uid(prefix: string): string {
 
           <div
             class="canvas-wrap"
+            data-cy="flow-canvas-wrap"
             (drop)="onCanvasDrop($event)"
             (dragover)="$event.preventDefault()"
           >
@@ -109,7 +117,14 @@ function uid(prefix: string): string {
             @if (selectedNode(); as n) {
               <div class="props-head">
                 <h2>Propriedades do nó</h2>
-                <button class="link" type="button" (click)="selectedId.set(null)">Ver fluxo</button>
+                <button
+                  class="link"
+                  data-cy="show-flow-props"
+                  type="button"
+                  (click)="selectedId.set(null)"
+                >
+                  Ver fluxo
+                </button>
               </div>
               <wf-node-props
                 [node]="n"
@@ -122,7 +137,11 @@ function uid(prefix: string): string {
 
               <div class="group">
                 <label>Gatilho</label>
-                <select [formControl]="triggerCtrl" [class.disabled]="!editable()">
+                <select
+                  data-cy="flow-trigger"
+                  [formControl]="triggerCtrl"
+                  [class.disabled]="!editable()"
+                >
                   @for (t of triggerTypes; track t) {
                     <option [value]="t">{{ triggerLabel(t) }}</option>
                   }
@@ -134,6 +153,7 @@ function uid(prefix: string): string {
                   <label>Palavra-chave</label>
                   <input
                     class="wf-input"
+                    data-cy="flow-trigger-value"
                     type="text"
                     [formControl]="triggerValueCtrl"
                     placeholder="ex.: oi, menu, comprar"
@@ -319,12 +339,22 @@ export class FlowBuilderComponent implements OnInit {
   variables = computed(() => deriveVariables(this.nodes()));
 
   ngOnInit(): void {
-    const id = this.route.snapshot.paramMap.get('id');
-    if (!id) {
-      this.error.set('Fluxo não informado');
-      this.loading.set(false);
-      return;
-    }
+    this.route.paramMap.subscribe(params => {
+      const id = params.get('id');
+      if (!id) {
+        this.error.set('Fluxo não informado');
+        this.loading.set(false);
+        return;
+      }
+      this.loadFlow(id);
+    });
+
+    this.triggerCtrl.valueChanges.subscribe(() => this.markDirty());
+    this.triggerValueCtrl.valueChanges.subscribe(() => this.markDirty());
+  }
+
+  private loadFlow(id: string): void {
+    this.loading.set(true);
     this.svc.get(id).subscribe({
       next: f => {
         this.flow.set(f);
@@ -335,6 +365,9 @@ export class FlowBuilderComponent implements OnInit {
         if (f.status !== 'DRAFT') {
           this.triggerCtrl.disable({ emitEvent: false });
           this.triggerValueCtrl.disable({ emitEvent: false });
+        } else {
+          this.triggerCtrl.enable({ emitEvent: false });
+          this.triggerValueCtrl.enable({ emitEvent: false });
         }
         this.loading.set(false);
       },
@@ -343,9 +376,6 @@ export class FlowBuilderComponent implements OnInit {
         this.loading.set(false);
       },
     });
-
-    this.triggerCtrl.valueChanges.subscribe(() => this.markDirty());
-    this.triggerValueCtrl.valueChanges.subscribe(() => this.markDirty());
   }
 
   triggerLabel(t: TriggerType): string {

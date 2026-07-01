@@ -17,7 +17,12 @@ const STATUS_LABEL: Record<FlowStatus, string> = {
     <section class="page">
       <header class="page-head">
         <h1>Fluxos</h1>
-        <button class="wf-btn wf-btn--primary" (click)="createFlow()" [disabled]="creating()">
+        <button
+          class="wf-btn wf-btn--primary"
+          data-cy="create-flow"
+          (click)="createFlow()"
+          [disabled]="creating()"
+        >
           {{ creating() ? 'Criando...' : 'Novo fluxo' }}
         </button>
       </header>
@@ -33,7 +38,7 @@ const STATUS_LABEL: Record<FlowStatus, string> = {
       } @else {
         <div class="grid">
           @for (flow of flows(); track flow.id) {
-            <article class="card" (click)="open(flow)">
+            <article class="card" data-cy="flow-card" (click)="open(flow)">
               <div class="card-top">
                 <strong>{{ flow.name }}</strong>
                 <span class="badge" [class]="'st-' + flow.status">{{ label(flow.status) }}</span>

@@ -1,0 +1,120 @@
+<section class="page">
+  <header class="page-head">
+    <div>
+      <h1>Webhooks</h1>
+      <p class="muted">Notifique sistemas externos quando eventos acontecerem no WhatFlow.</p>
+    </div>
+    <button class="wf-btn wf-btn--primary" (click)="openCreate()">Novo webhook</button>
+  </header>
+
+  @if (error()) {
+  <p class="error">{{ error() }}</p>
+  } @if (loading()) {
+  <p class="muted">Carregando...</p>
+  } @else if (webhooks().length === 0) {
+  <div class="empty">
+    <p>Nenhum webhook configurado ainda.</p>
+    <button class="wf-btn wf-btn--primary" (click)="openCreate()">Criar o primeiro</button>
+  </div>
+  } @else {
+  <div class="list">
+    @for (w of webhooks(); track w.id) {
+    <article class="card">
+      <div class="card-head">
+        <div class="card-title">
+          <h2>{{ w.name }}</h2>
+          <span class="wf-badge" [class.wf-badge--success]="w.isActive" [class.wf-badge--danger]="!w.isActive">
+            {{ w.isActive ? 'Ativo' : 'Inativo' }}
+          </span>
+          @if (w.hasSecret) {
+          <span class="wf-badge" title="Assinatura HMAC configurada">Assinado</span>
+          }
+        </div>
+        <div class="card-actions">
+          <button class="wf-btn" (click)="test(w)" [disabled]="testingId() === w.id">
+            {{ testingId() === w.id ? 'Testando...' : 'Testar' }}
+          </button>
+          <button class="wf-btn" (click)="toggleDeliveries(w)">
+            {{ expandedId() === w.id ? 'Ocultar histórico' : 'Histórico' }}
+          </button>
+          <button class="wf-btn" (click)="openEdit(w)">Editar</button>
+          <button class="wf-btn wf-btn--danger" (click)="remove(w)">Excluir</button>
+        </div>
+      </div>
+
+      <p class="url">{{ w.url }}</p>
+
+      <div class="chips">
+        @for (ev of w.events; track ev) {
+        <span class="chip">{{ eventLabel(ev) }}</span>
+        }
+      </div>
+
+      @if (expandedId() === w.id) {
+      <div class="deliveries">
+        <div class="deliveries-head">
+          <strong>Histórico de entregas</strong>
+          <button class="wf-btn" (click)="refreshDeliveries()" [disabled]="deliveriesLoading()">
+            {{ deliveriesLoading() ? 'Atualizando...' : 'Atualizar' }}
+          </button>
+        </div>
+
+        @if (deliveriesError()) {
+        <p class="error">{{ deliveriesError() }}</p>
+        } @if (deliveriesLoading()) {
+        <p class="muted">Carregando entregas...</p>
+        } @else if (deliveries().length === 0) {
+        <p class="muted">Nenhuma entrega registrada.</p>
+        } @else {
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>HTTP</th>
+                <th>Tentativas</th>
+                <th>Tempo</th>
+                <th>Quando</th>
+                <th>Resposta</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (d of deliveries(); track d.id) {
+              <tr>
+                <td>
+                  <span class="wf-badge" [class]="statusBadge[d.status]"> {{ statusLabel[d.status] }} </span>
+                </td>
+                <td>{{ d.httpStatus ?? '—' }}</td>
+                <td>{{ d.attemptCount }}</td>
+                <td>{{ durationMs(d) !== null ? durationMs(d) + ' ms' : '—' }}</td>
+                <td>{{ formatDate(d.deliveredAt ?? d.createdAt) }}</td>
+                <td class="resp">
+                  @if (d.status === 'FAILED' || d.status === 'RETRYING') {
+                  <span class="resp-error"> {{ d.responseBody || 'Sem corpo de resposta (falha de conexão)' }} </span>
+                  } @else if (d.responseBody) {
+                  <span class="resp-ok">{{ d.responseBody }}</span>
+                  } @else {
+                  <span class="muted">—</span>
+                  }
+                </td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pager">
+          <button class="wf-btn" (click)="prevPage()" [disabled]="deliveryPage() <= 1">Anterior</button>
+          <span class="muted">Página {{ deliveryPage() }} de {{ totalPages() }}</span>
+          <button class="wf-btn" (click)="nextPage()" [disabled]="deliveryPage() >= totalPages()">Próxima</button>
+        </div>
+        }
+      </div>
+      }
+    </article>
+    }
+  </div>
+  } @if (formOpen()) {
+  <wf-webhook-form [webhook]="editing()" (saved)="onSaved()" (closed)="closeForm()" />
+  }
+</section>

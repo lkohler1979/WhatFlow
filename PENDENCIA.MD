@@ -1,7 +1,7 @@
 # WhatFlow — Pendências (executar depois)
 
 > Itens conhecidos que ficaram em aberto ao fechar o **Sprint 1**.
-> Atualizado em 2026-06-24.
+> Atualizado em 2026-06-30.
 
 ---
 
@@ -37,30 +37,30 @@
 | # | Item | Detalhe |
 |---|------|---------|
 | P-04 | **Design system / Storybook (T-009)** | Tema global, tokens e componentes base documentados (Storybook ou demo page). Hoje há só estilo mínimo. |
-| P-05 | **Breadcrumbs + navegação (T-010)** | Breadcrumbs por rota; estado ativo na sidebar; rótulos das rotas. |
-| P-06 | **`forgot-password` real** | Hoje é stub. Implementar reset via Supabase Auth (`resetPasswordForEmail`) quando SMTP estiver configurado. |
-| P-07 | **Dashboard com métricas reais** | Cards usam placeholder (`—`). Plugar nos endpoints de analytics (Sprint 6). |
+| ~~P-05~~ | ~~Breadcrumbs + navegação (T-010)~~ | ✅ **Resolvido**: `BreadcrumbsComponent` monta trilha por rota, `SidebarNavComponent` usa estado ativo via `RouterLinkActive` e os rótulos principais estão definidos. |
+| ~~P-06~~ | ~~`forgot-password` real~~ | ✅ **Resolvido** (2026-06-30): `POST /v1/auth/forgot-password` dispara `resetPasswordForEmail` via Supabase Auth com redirect para `/auth/reset-password`; frontend ganhou formulário de solicitação e tela para gravar nova senha a partir do link de recuperação. Requer SMTP configurado no Supabase e `supabaseUrl`/`supabaseAnonKey` públicos no environment do web para concluir a troca de senha. |
+| ~~P-07~~ | ~~Dashboard com métricas reais~~ | ✅ **Resolvido**: dashboard consome endpoints de analytics, exibe KPIs reais, gráfico de volume de mensagens e exportação CSV por período. |
 
 ## 🎨 Sprint 3 — Flow Builder (verificação visual)
 
 | # | Item | Detalhe |
 |---|------|---------|
-| P-19 | **Validação visual do Flow Builder no browser (T-023/T-024/T-025)** | Os agentes do frontend usaram o **build do Angular (strictTemplates)** como gate, não verificação visual — a UI não foi clicada de ponta a ponta. Falta validar no navegador: criar fluxo → arrastar nós da paleta → mover cards → conectar saída→entrada (incl. MENU por opção e CONDITION true/false) → editar propriedades por tipo → inserir variável `{{}}` + ver preview → **salvar → reabrir e conferir que o layout persiste** → publicar (e o 409→Duplicar). Docker está estável; dá para usar a ferramenta de preview com backend autenticado (`/v1/flows`). Login: luizarlindo79@gmail.com / 123456. |
+| ~~P-19~~ | ~~Validação visual do Flow Builder no browser~~ | ✅ **FEITO** (2026-06-30, via T-050): `flow-builder.cy.ts` roda de verdade (Electron headless) e passa — cria fluxo → edita nós/propriedades → variável `{{}}` + preview → move card → conecta TEXT/MENU/CONDITION → salva → reabre → publica → duplica. Achou e corrigiu um **bug real**: `ngOnInit` lia `route.snapshot.paramMap` (uma vez só) em vez de `route.paramMap.subscribe` — ao duplicar um fluxo, a URL mudava mas os dados do fluxo antigo continuavam na tela até F5 manual. Corrigido. |
 
 ## 🧪 Qualidade / CI (T-050)
 
 | # | Item | Detalhe |
 |---|------|---------|
-| P-08 | **ESLint do Angular** | Não há config de lint no `apps/web`. Adicionar `angular-eslint` (flat config) e reativar `lint --workspace=apps/web` no CI. |
-| P-09 | **Testes do frontend (Karma/Jasmine)** | Falta `tsconfig.spec.json` + target `test` no `angular.json` + specs. Reativar `test --workspace=apps/web` no CI. |
-| P-10 | **Cobertura backend ≥ 70% (T-049)** | Hoje só testes de schema (Zod). Adicionar testes de service/controller (mock de Supabase/Prisma) e ligar `test:coverage` no CI. |
+| P-08 | **ESLint do Angular** | Ainda não há config de lint no `apps/web`. Adicionar `angular-eslint` (flat config) e reativar `lint --workspace=apps/web` no CI. |
+| ~~P-09~~ | ~~Testes do frontend (Karma/Jasmine)~~ | ✅ **FEITO** (T-050, 2026-06-30): `karma.conf.js`/`test.ts`/`tsconfig.spec.json`/target `test`; 114 testes, 84% linhas. `test --workspace=apps/web` reativado no CI (`ci.yml`, job web, com `CHROME_BIN`). |
+| ~~P-10~~ | ~~Cobertura backend ≥ 70% (T-049)~~ | ✅ **FEITO** (2026-06-30): 118 testes novos (repositories/controllers/middlewares/auth+users.service), 80.12% linhas. `test:coverage` ligado no CI (job api). |
 
 ## 🛠️ Backend — dívidas técnicas pequenas
 
 | # | Item | Detalhe |
 |---|------|---------|
 | P-11 | **`GET /auth/me` enriquecido** | Hoje retorna `{ id, tenantId, role }`. Opcional: retornar `user` + `tenant` completos (o frontend já persiste o user do login/register, então não é bloqueante). |
-| P-12 | **Migrations no Supabase** | `prisma migrate dev` é interativo-only contra o pooler; o fluxo adotado é **baseline + `prisma migrate deploy`**. Documentar no README para o time. |
+| ~~P-12~~ | ~~Migrations no Supabase~~ | ✅ **Resolvido** (2026-06-30): README documenta o fluxo **baseline + `prisma migrate deploy`**, quickstart passou a usar `npm run prisma:deploy` e os scripts raiz/API agora expõem `prisma:deploy`. |
 | P-13 | **Resolução do `rxjs`** | Mantido via `overrides` (raiz) + `paths` no `tsconfig` do web (conflito 7.8.1 vs 7.8.2). Revisar ao subir versões do Angular/devkit. |
 
 ---
