@@ -167,9 +167,15 @@ export class ContactInfoPanelComponent {
   tagErr = signal<string | null>(null);
 
   private _conversation: Conversation | null = null;
+  /** Id da conversa cujas tags já foram sincronizadas localmente (evita
+   *  reconstruir a lista a cada atualização de metadado da mesma conversa —
+   *  ex.: nova mensagem/realtime — mantendo apenas edições reais em sincronia). */
+  private loadedConversationId: string | null = null;
 
   @Input() set conversation(conv: Conversation | null) {
     this._conversation = conv;
+    if (conv !== null && conv.id === this.loadedConversationId) return;
+    this.loadedConversationId = conv?.id ?? null;
     this.tagErr.set(null);
     this.tags.set((conv?.tags ?? []).map(t => this.toTag(t)));
   }
